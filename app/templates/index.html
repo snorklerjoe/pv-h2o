@@ -1,0 +1,9 @@
+{% extends "base.html" %}
+
+{% block content %}
+    <div class="jumbotron">
+        <h1>Welcome to PV Hot Water Control</h1>
+        <p class="lead">System Status: <span class="badge bg-success">Online</span></p>
+        <a class="btn btn-primary btn-lg" href="{{ url_for('main.dashboard') }}" role="button">Go to Dashboard</a>
+    </div>
+{% endblock %}

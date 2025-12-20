@@ -1,0 +1,14 @@
+Flask
+Flask-SQLAlchemy
+Flask-Login
+Flask-WTF
+pymysql
+APScheduler
+astral
+requests
+scipy
+numpy
+python-dotenv
+tzdata
+loguru
+pytest
