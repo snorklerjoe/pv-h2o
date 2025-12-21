@@ -1,6 +1,20 @@
 from abc import ABC, abstractmethod
+from typing import Type
 
 class BaseSensorDriver(ABC):
+    _instances = {}
+
+    def get_driver(key: str) -> Type:
+        """ Turns a string into the specified driver class """
+        return BaseSensorDriver._instances[key]
+    
+    def regster_driver(key: str):
+        """ Drivers should use this as a decorator to specify a string-key to use in the db """
+        def decorator(cls):
+            BaseSensorDriver._instances[key] = cls
+            return cls
+        return decorator
+
     def __init__(self, params=None):
         self.params = params or {}
 
@@ -10,6 +24,19 @@ class BaseSensorDriver(ABC):
         pass
 
 class BaseOutputDriver(ABC):
+    _instances = {}
+
+    def get_driver(key: str) -> Type:
+        """ Turns a string into the specified driver class """
+        return BaseOutputDriver._instances[key]
+    
+    def regster_driver(key: str):
+        """ Drivers should use this as a decorator to specify a string-key to use in the db """
+        def decorator(cls):
+            BaseOutputDriver._instances[key] = cls
+            return cls
+        return decorator
+
     def __init__(self, params=None):
         self.params = params or {}
 
@@ -24,6 +51,20 @@ class BaseOutputDriver(ABC):
         pass
 
 class BaseLCDDriver(ABC):
+    _instances = {}
+
+    def get_driver(key: str) -> Type:
+        """ Turns a string into the specified driver class """
+        return BaseLCDDriver._instances[key]
+    
+    def regster_driver(key: str):
+        """ Drivers should use this as a decorator to specify a string-key to use in the db """
+        def decorator(cls):
+            BaseLCDDriver._instances[key] = cls
+            return cls
+        return decorator
+
+
     def __init__(self, params=None):
         self.params = params or {}
 

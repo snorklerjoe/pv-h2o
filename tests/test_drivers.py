@@ -1,5 +1,6 @@
 import pytest
 from drivers.dummy_driver import DummySensorDriver, DummyOutputDriver, DummyLCDDriver
+from drivers.base_driver import BaseSensorDriver, BaseOutputDriver, BaseLCDDriver
 
 def test_sensor_driver():
     driver = DummySensorDriver({'value': 50.0, 'noise': 0.0})
@@ -21,3 +22,18 @@ def test_lcd_driver():
     driver.write_line(0, "Hello")
     driver.clear()
     driver.set_backlight(True)
+
+def test_driver_registration():
+    # Test that the dummy drivers are correctly registered and retrievable
+    
+    # Sensor Driver
+    sensor_cls = BaseSensorDriver.get_driver("dummy")
+    assert sensor_cls == DummySensorDriver
+    
+    # Output Driver
+    output_cls = BaseOutputDriver.get_driver("dummy")
+    assert output_cls == DummyOutputDriver
+    
+    # LCD Driver
+    lcd_cls = BaseLCDDriver.get_driver("dummy")
+    assert lcd_cls == DummyLCDDriver

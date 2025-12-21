@@ -14,7 +14,7 @@ class HardwareState:
     _instancelock = threading.RLock()
 
     @synchronized
-    def pollSensors():
+    def poll_sensors():
         """ Polls all hardware inputs, updating current context & saving to the database """
         logger.debug("Polling from sensors")
 
