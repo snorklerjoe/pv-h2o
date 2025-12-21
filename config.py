@@ -12,3 +12,7 @@ class Config:
     
     TIMEZONE_NAME = "America/New_York"
     TIMEZONE = ZoneInfo("America/New_York")
+
+    WATCDOG_PERIOD_SEC = 90
+
+    SUMMARY_RUN_HOUR = 22

@@ -1,7 +1,7 @@
 import pytest
 import threading
 import time
-from app.utils import synchronized
+from app.utils import synchronized, classproperty
 
 class TestUtils:
     def test_synchronized(self):
@@ -26,3 +26,15 @@ class TestUtils:
             t.join()
             
         assert counter.count == 50
+
+    def test_classproperty(self):
+        class A:
+            classval = 2.0
+            @classproperty
+            def myprop(cls):
+                return cls.classval * 2.0
+        class B(A):
+            classval = 3.0
+        
+        assert A.myprop == 4.0
+        assert B.myprop == 6.0  # `cls` should follow the subclass

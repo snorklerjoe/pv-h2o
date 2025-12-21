@@ -1,21 +1,29 @@
 """ Code for accessing hardware """
 
-from drivers.base_driver import BaseSensorDriver, BaseOutputDriver, BaseLCDDriver
-from drivers.dummy_driver import DummySensorDriver, DummyOutputDriver, DummyLCDDriver
+from drivers.base_driver import BaseSensorDriver, BaseOutputDriver, BaseLCDDriver, BaseGFCIDriver, HardwareDriver
+from drivers.dummy_driver import DummySensorDriver, DummyOutputDriver, DummyLCDDriver, DummyGFCIDriver
 from typing import Type
 from app.dynconfig import DynConfig, MalformedConfigException
-from app.constants import SensorId, RelayId
+from app.hardware_constants import SensorId, RelayId
 from loguru import logger
+from typing import Type
 
 drivers_initialized = False
+hardware_initialized = False
+
 sensor_drivers = {}
 relay_drivers = {}
 lcd_driver = None
+gfci_driver = None
+
+def get_all_drivers() -> dict[str,HardwareDriver]:
+    return {'lcd': lcd_driver, **sensor_drivers, **relay_drivers}
 
 def initialize_drivers():
     """ Reads drivers and driver configuration from DynConf.
     Initialized driver instances are then found in the dictionaries in this module.
     """
+    global drivers_initialized, lcd_driver, gfci_driver
     if drivers_initialized:  # Re-init of drivers...
         drivers_initialized = False  # de-validate drivers
 
@@ -29,6 +37,7 @@ def initialize_drivers():
         sensor_driver_conf = DynConfig.driver_sensors
         output_driver_conf = DynConfig.driver_relays
         lcd_driver_conf = DynConfig.driver_lcd
+        gfci_driver_conf = DynConfig.driver_gfci
     except MalformedConfigException:  # Malformed config goes through eval()
         logger.error(f"Malformed driver config. Cannot initialize drivers.")
         raise
@@ -63,8 +72,43 @@ def initialize_drivers():
         lcd_driver = DriverClass(lcd_driver_conf[1])
     except KeyError:  # We don't have a sensor driver config specified for this sensor
         logger.warning(f"No driver found for lcd... Using dummy driver.")
-        lcd_driver = DummyLCDDriver({})  # No parameters (use defaults)     
+        lcd_driver = DummyLCDDriver({})  # No parameters (use defaults)   
+
+    # Do GFCI  
+    try:
+        DriverClass: Class[BaseGFCIDriver] = BaseGFCIDriver.get_driver(
+            gfci_driver_conf[0]
+        )
+        gfci_driver = DriverClass(gfci_driver_conf[1])
+    except KeyError:  # We don't have a sensor driver config specified for this sensor
+        logger.warning(f"No driver found for GFCI... Using dummy driver.")
+        gfci_driver = DummyGFCIDriver({})  # No parameters (use defaults)   
 
     drivers_initialized = True
 
+def initialize_hardware():
+    """ Runs the init method of each hardware driver
+    Must be run after drivers are initialized """
+    global hardware_initialized
+    if not drivers_initialized:
+        raise ValueError("Drivers are not initialized. Cannot initialize hardware.")
+    if hardware_initialized:  # If hardware is already brought up, bring it down first
+        logger.warning("Force-deinitializing hardware before re-initializing it.")
+        deinitialize_hardware()
+    for name, driver in get_all_drivers().items():
+        logger.debug(f"Intializing {name}.")
+        driver.hardware_init()
+    hardware_initialized = True
 
+def deinitialize_hardware(force: bool = False):
+    """ Runs the init method of each hardware driver
+    Must be run after drivers are initialized """
+    global hardware_initialized
+    if not drivers_initialized:
+        raise ValueError("Drivers are not initialized. Cannot deinitialize hardware.")
+    if not force and not hardware_initialized:
+        raise ValueError("Hardware has not been initialized. Cannot deinitialize hardware.")
+    for name, driver in get_all_drivers().items():
+        logger.debug(f"Deinitializing {name}.")
+        driver.hardware_deinit()
+    hardware_initialized = False

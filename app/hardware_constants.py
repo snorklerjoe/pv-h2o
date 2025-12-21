@@ -1,7 +1,8 @@
-from enum import Enum
+from enum import Enum, unique
 
+@unique
 class SensorId(Enum):
-    """ Identifies each sensor in the system """
+    """ Uniquely identifies each sensor in the system """
 
     # Misc. sensors
     t0 = "t0"    # Temperature of unheated water entering the setup
@@ -16,8 +17,9 @@ class SensorId(Enum):
     i2 = "i2"  # Current
     t2 = "t2"  # Temperature
 
+@unique
 class RelayId(Enum):
-    """ Identifies each relay in the system """
+    """ Uniquely identifies each relay in the system """
 
     # Inside relays
     circ1 = "circ1"

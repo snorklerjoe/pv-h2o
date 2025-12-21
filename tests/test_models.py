@@ -1,7 +1,7 @@
 import pytest
 from app import create_app, db
 from app.models import User, Measurement
-from app.constants import SensorId
+from app.hardware_constants import SensorId
 from config import Config
 
 class TestConfig(Config):

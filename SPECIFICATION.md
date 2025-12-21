@@ -11,6 +11,16 @@ The system is divided into five main logical components:
 4.  **GFCI Control**: Interface with the external GFCI breaker box.
 5.  **Watchdog**: Continuous safety monitoring.
 
+### A Note on Threading
+
+Backend stuff, web app stuff, and hardware interface stuff are combined.
+Thus, it is very important that whatever wsgi server is used only spins up a SINGLE WORKER.
+Multiple threads are okay, but this can only handle a single worker.
+
+Future modification might move all hardware stuff to a separate daemon and make the webserver stateless.
+For now, it seems that would be an unnecessary level of overcomplication.
+
+
 ## 3. Technology Stack
 -   **Language**: Python 3.x
 -   **Web Framework**: Flask

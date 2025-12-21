@@ -1,7 +1,7 @@
 """ Dynamic configuration from the database """
 
 from app.models import SystemConfig
-from app.constants import SensorId, RelayId
+from app.hardware_constants import SensorId, RelayId
 from app.utils import classproperty
 from loguru import logger
 
@@ -33,7 +33,7 @@ class DynConfig:
     _confDict = None
 
     @classmethod
-    def fetch_config():
+    def fetch_config(cls):
         # Grab latest config dictionary from the database
         # This requires an active application context
         try:
@@ -68,6 +68,8 @@ class DynConfig:
     temp_hysteresis = conf_property_evald("temp_hysteresis", "2.0")
     polling_rate_seconds = conf_property_evald("polling_rate_seconds", "60")
 
+    circuit_states = conf_property_evald("circuit_states", "[False, False]")
+
     # Location & Day/Night
     location_name = conf_property("location_name", "Concord")
     location_lat = conf_property_evald("location_lat", "0.0")
@@ -93,8 +95,10 @@ class DynConfig:
     notify_smtp_port = conf_property_evald("notify_smtp_port", "587")
     notify_smtp_user = conf_property("notify_smtp_user", "")
     notify_smtp_pass = conf_property("notify_smtp_pass", "")
+    notify_to_emails = conf_property("notify_to_emails", "john@example.com,bob@example.com")
 
     # Drivers for things
     driver_sensors = conf_property_evald("driver_sensors", "{" + ', '.join([f"\"{key.value}\":(\"dummy\", {{ 'value': 2.0, 'noise': 1.0 }})" for key in SensorId]) + "}")
     driver_relays = conf_property_evald("driver_relays", "{" + ', '.join([f"\"{key.value}\":(\"dummy\", {{ }})" for key in RelayId]) + "}")
     driver_lcd = conf_property("driver_lcd", "(dummy, {})")
+    driver_gfci = conf_property("driver_gfci", "(dummy, {})")

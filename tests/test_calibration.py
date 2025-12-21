@@ -1,7 +1,7 @@
 import pytest
 from app import create_app, db
 from app.models import CalibrationPoint
-from app.constants import SensorId
+from app.hardware_constants import SensorId
 from app.calibration import CalibrationRegistry, CalTable
 from config import Config
 

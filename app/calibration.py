@@ -4,7 +4,7 @@
 from app.models import CalibrationPoint
 from functools import cached_property
 from typing import Dict, List, Optional
-from app.constants import SensorId
+from app.hardware_constants import SensorId
 
 class CalibrationRegistry:
     """
@@ -92,4 +92,4 @@ class SensorReading:
     @cached_property
     def cald(self) -> float:
         """ The calibrated value """
-        return CalibrationRegistry.get_points(self.sensor_id).apply_cal(self.meas)
+        return CalTable(self.sensor_id).apply_cal(self.meas)
