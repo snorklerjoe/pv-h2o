@@ -1,36 +1,193 @@
 {% extends "base.html" %}
 
 {% block content %}
-    <h1>Dashboard</h1>
-    <div class="row">
-        <div class="col-md-6">
-            <div class="card mb-4">
-                <div class="card-header">Tank 1</div>
-                <div class="card-body">
-                    <h2 class="card-title">-- °C</h2>
-                    <p class="card-text">Status: --</p>
-                </div>
+<div class="row mb-4">
+    <div class="col-md-12">
+        <h1>Dashboard</h1>
+        <div id="status-indicator" class="badge bg-secondary">Loading Status...</div>
+        <div id="day-night-indicator" class="badge bg-info">Checking Day/Night...</div>
+    </div>
+</div>
+
+<div class="row">
+    <!-- Circuit 1 -->
+    <div class="col-md-6">
+        <div class="card mb-4">
+            <div class="card-header d-flex justify-content-between align-items-center">
+                <h5 class="mb-0">Circuit 1 (Tank 1)</h5>
+                <span id="relay-state-circ1" class="badge rounded-pill bg-secondary">OFF</span>
             </div>
-        </div>
-        <div class="col-md-6">
-            <div class="card mb-4">
-                <div class="card-header">Tank 2</div>
-                <div class="card-body">
-                    <h2 class="card-title">-- °C</h2>
-                    <p class="card-text">Status: --</p>
+            <div class="card-body">
+                <div class="d-grid gap-2">
+                    {% if current_user.is_authenticated %}
+                    <button id="btn-circ1" class="btn btn-lg btn-outline-primary" onclick="toggleCircuit(0)">
+                        Enable Circuit 1
+                    </button>
+                    {% else %}
+                    <div class="alert alert-secondary text-center mb-0">Login to control</div>
+                    {% endif %}
+                </div>
+                <hr>
+                <div class="row">
+                    <div class="col-6">
+                        <strong>Temp:</strong> <span id="val-t1">--</span> &deg;F
+                    </div>
+                    <div class="col-6">
+                        <strong>Current:</strong> <span id="val-i1">--</span> A
+                    </div>
                 </div>
             </div>
         </div>
     </div>
-    <div class="row">
-        <div class="col-12">
-            <div class="card">
-                <div class="card-header">Power Output (24h)</div>
-                <div class="card-body">
-                    <!-- Graph placeholder -->
-                    <canvas id="powerChart"></canvas>
+
+    <!-- Circuit 2 -->
+    <div class="col-md-6">
+        <div class="card mb-4">
+            <div class="card-header d-flex justify-content-between align-items-center">
+                <h5 class="mb-0">Circuit 2 (Tank 2)</h5>
+                <span id="relay-state-circ2" class="badge rounded-pill bg-secondary">OFF</span>
+            </div>
+            <div class="card-body">
+                <div class="d-grid gap-2">
+                    {% if current_user.is_authenticated %}
+                    <button id="btn-circ2" class="btn btn-lg btn-outline-primary" onclick="toggleCircuit(1)">
+                        Enable Circuit 2
+                    </button>
+                    {% else %}
+                    <div class="alert alert-secondary text-center mb-0">Login to control</div>
+                    {% endif %}
+                </div>
+                <hr>
+                <div class="row">
+                    <div class="col-6">
+                        <strong>Temp:</strong> <span id="val-t2">--</span> &deg;F
+                    </div>
+                    <div class="col-6">
+                        <strong>Current:</strong> <span id="val-i2">--</span> A
+                    </div>
                 </div>
             </div>
         </div>
     </div>
+</div>
+
+<div class="row">
+    <div class="col-md-12">
+        <div class="card">
+            <div class="card-header">Other Sensors</div>
+            <div class="card-body">
+                <div class="row">
+                    <div class="col-md-4">
+                        <strong>Ambient Temp (T0):</strong> <span id="val-t0">--</span> &deg;F
+                    </div>
+                    <div class="col-md-4">
+                        <strong>Voltage 1 (V1):</strong> <span id="val-v1">--</span> V
+                    </div>
+                    <div class="col-md-4">
+                        <strong>Voltage 2 (V2):</strong> <span id="val-v2">--</span> V
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+    let circuitStates = [false, false];
+
+    function updateDashboard() {
+        fetch('/api/status')
+            .then(response => response.json())
+            .then(data => {
+                // Update Day/Night
+                const dn = document.getElementById('day-night-indicator');
+                if (data.is_day) {
+                    dn.textContent = "Day Time";
+                    dn.className = "badge bg-warning text-dark";
+                } else {
+                    dn.textContent = "Night Time";
+                    dn.className = "badge bg-dark";
+                }
+
+                // Update Manual Mode
+                const st = document.getElementById('status-indicator');
+                if (data.manual_mode) {
+                    st.textContent = "Manual Mode";
+                    st.className = "badge bg-danger";
+                } else {
+                    st.textContent = "Automatic Regulation";
+                    st.className = "badge bg-success";
+                }
+
+                // Update Sensors
+                for (const [key, val] of Object.entries(data.sensors)) {
+                    const el = document.getElementById(`val-${key}`);
+                    if (el) {
+                        el.textContent = val ? val.calibrated.toFixed(1) : '--';
+                    }
+                }
+
+                // Update Relays (Actual State)
+                updateRelayBadge('circ1', data.relays.circ1);
+                updateRelayBadge('circ2', data.relays.circ2);
+
+                // Update Circuit Enables (Switches)
+                circuitStates = data.circuit_enables;
+                updateCircuitButton(0, circuitStates[0]);
+                updateCircuitButton(1, circuitStates[1]);
+            })
+            .catch(err => console.error('Error fetching status:', err));
+    }
+
+    function updateRelayBadge(id, state) {
+        const el = document.getElementById(`relay-state-${id}`);
+        if (state) {
+            el.textContent = "ON";
+            el.className = "badge rounded-pill bg-success";
+            el.style.boxShadow = "0 0 10px #28a745"; // Fancy light effect
+        } else {
+            el.textContent = "OFF";
+            el.className = "badge rounded-pill bg-secondary";
+            el.style.boxShadow = "none";
+        }
+    }
+
+    function updateCircuitButton(idx, enabled) {
+        const btn = document.getElementById(`btn-circ${idx+1}`);
+        if (!btn) return;
+        if (enabled) {
+            btn.textContent = `Disable Circuit ${idx+1}`;
+            btn.className = "btn btn-lg btn-success";
+        } else {
+            btn.textContent = `Enable Circuit ${idx+1}`;
+            btn.className = "btn btn-lg btn-outline-secondary";
+        }
+    }
+
+    function toggleCircuit(idx) {
+        const newState = !circuitStates[idx];
+        fetch('/api/circuits', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+            },
+            body: JSON.stringify({
+                circuit_id: idx,
+                enabled: newState
+            }),
+        })
+        .then(response => response.json())
+        .then(data => {
+            if (data.success) {
+                updateDashboard(); // Refresh immediately
+            } else {
+                alert('Failed to toggle circuit');
+            }
+        });
+    }
+
+    // Poll every 2 seconds
+    setInterval(updateDashboard, 2000);
+    updateDashboard();
+</script>
 {% endblock %}

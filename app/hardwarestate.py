@@ -26,6 +26,9 @@ class HardwareState:
     cur_sensor_values: dict[SensorId, Optional[SensorReading]] = dict(
         (key, None) for key in SensorId  # Fill with dict of None for each sensor we have
     )
+    _relay_states: dict[RelayId, bool] = dict(
+        (key, False) for key in RelayId
+    )
     last_polled: Optional[datetime] = None
     circuits_enabled: Optional[list[bool]] = None
 
@@ -83,5 +86,9 @@ class HardwareState:
             driver.set_state(new_state)
 
             # Keep track of the change
-        HardwareState._relay_states[id] = new_state
+            HardwareState._relay_states[id] = new_state
+
+    @staticmethod
+    def get_relay_state(id: RelayId) -> bool:
+        return HardwareState._relay_states.get(id, False)
 

@@ -69,3 +69,11 @@ class SystemConfig(db.Model):
     """Key-value store for dynamic system settings"""
     key = db.Column(db.String(64), primary_key=True)
     value = db.Column(db.String(256))
+
+class LogEntry(db.Model):
+    id = db.Column(db.Integer, primary_key=True)
+    timestamp = db.Column(db.DateTime, index=True, default=datetime.now(Config.TIMEZONE))
+    level = db.Column(db.String(20))
+    message = db.Column(db.String(512))
+    module = db.Column(db.String(64))
+

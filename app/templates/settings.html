@@ -1,0 +1,123 @@
+{% extends "base.html" %}
+
+{% block content %}
+<div class="row">
+    <div class="col-md-12">
+        <h1>System Configuration</h1>
+        <p class="text-muted">Modify system parameters. Changes take effect immediately.</p>
+        
+        <div id="alert-box"></div>
+
+        <div class="card">
+            <div class="card-body">
+                <form id="config-form">
+                    <div id="config-fields">
+                        <div class="text-center">
+                            <div class="spinner-border text-primary" role="status">
+                                <span class="visually-hidden">Loading...</span>
+                            </div>
+                        </div>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+    document.addEventListener('DOMContentLoaded', loadConfig);
+
+    function loadConfig() {
+        fetch('/api/config')
+            .then(response => response.json())
+            .then(data => {
+                const container = document.getElementById('config-fields');
+                container.innerHTML = ''; // Clear loading spinner
+
+                // Sort keys for consistent display
+                const keys = Object.keys(data).sort();
+
+                keys.forEach(key => {
+                    const item = data[key];
+                    const formGroup = document.createElement('div');
+                    formGroup.className = 'mb-3 row';
+
+                    const label = document.createElement('label');
+                    label.className = 'col-sm-4 col-form-label';
+                    label.htmlFor = `input-${key}`;
+                    label.innerHTML = `<strong>${key}</strong><br><small class="text-muted">${item.description}</small>`;
+
+                    const divInput = document.createElement('div');
+                    divInput.className = 'col-sm-6';
+
+                    const input = document.createElement('input');
+                    input.type = 'text';
+                    input.className = 'form-control';
+                    input.id = `input-${key}`;
+                    
+                    // Handle array/eval types
+                    let displayValue = item.value;
+                    if (Array.isArray(displayValue) || typeof displayValue === 'object') {
+                        displayValue = JSON.stringify(displayValue);
+                    }
+                    input.value = displayValue;
+
+                    const divBtn = document.createElement('div');
+                    divBtn.className = 'col-sm-2';
+                    
+                    const btn = document.createElement('button');
+                    btn.className = 'btn btn-primary w-100';
+                    btn.textContent = 'Save';
+                    btn.type = 'button';
+                    btn.onclick = () => saveConfig(key, input.value);
+
+                    divInput.appendChild(input);
+                    divBtn.appendChild(btn);
+                    
+                    formGroup.appendChild(label);
+                    formGroup.appendChild(divInput);
+                    formGroup.appendChild(divBtn);
+
+                    container.appendChild(formGroup);
+                    container.appendChild(document.createElement('hr'));
+                });
+            })
+            .catch(err => {
+                console.error('Error loading config:', err);
+                document.getElementById('config-fields').innerHTML = '<div class="alert alert-danger">Failed to load configuration.</div>';
+            });
+    }
+
+    function saveConfig(key, value) {
+        fetch('/api/config', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+            },
+            body: JSON.stringify({
+                key: key,
+                value: value
+            }),
+        })
+        .then(response => response.json())
+        .then(data => {
+            const alertBox = document.getElementById('alert-box');
+            if (data.success) {
+                alertBox.innerHTML = `<div class="alert alert-success alert-dismissible fade show" role="alert">
+                    Saved <strong>${key}</strong> successfully.
+                    <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+                </div>`;
+            } else {
+                alertBox.innerHTML = `<div class="alert alert-danger alert-dismissible fade show" role="alert">
+                    Error saving <strong>${key}</strong>: ${data.error || 'Unknown error'}
+                    <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+                </div>`;
+            }
+        })
+        .catch(err => {
+            console.error('Error saving config:', err);
+            alert('Failed to save configuration.');
+        });
+    }
+</script>
+{% endblock %}

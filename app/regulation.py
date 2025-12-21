@@ -7,6 +7,7 @@ from datetime import timedelta, datetime
 from .hardware_constants import RelayId, SensorId
 from threading import Thread
 from time import sleep
+from config import Config
 
 class Regulator:
     """ Singleton that handles overall regulation of things """
@@ -43,7 +44,7 @@ class Regulator:
         rise_delta = timedelta(minutes=DynConfig.sunrise_offset_minutes)
         set_delta = timedelta(minutes=DynConfig.sunset_offset_minutes)
         window = (sunrise + rise_delta, sunset - set_delta)
-        return window[0] < datetime.now() < window[1]
+        return window[0] < datetime.now(Config.TIMEZONE) < window[1]
 
 
     def hook(self):

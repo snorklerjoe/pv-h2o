@@ -1,0 +1,67 @@
+{% extends "base.html" %}
+
+{% block content %}
+<script src="https://cdn.jsdelivr.net/npm/ansi_up@5.1.0/ansi_up.min.js"></script>
+<div class="row">
+    <div class="col-md-12">
+        <h1>System Logs</h1>
+        <div class="card">
+            <div class="card-body bg-dark text-light" id="log-scroll-container" style="height: 500px; overflow-y: scroll; font-family: monospace;">
+                <pre id="log-container" class="m-0" style="white-space: pre-wrap;"></pre>
+            </div>
+        </div>
+        <div class="mt-2">
+            <small class="text-muted">Auto-updates only when scrolled to bottom.</small>
+        </div>
+        <button class="btn btn-secondary mt-3" onclick="forceRefresh()">Refresh Logs</button>
+    </div>
+</div>
+
+<script>
+    const ansi_up = new AnsiUp();
+    const scrollContainer = document.getElementById('log-scroll-container');
+    const logContainer = document.getElementById('log-container');
+    let isUserScrolledUp = false;
+
+    document.addEventListener('DOMContentLoaded', () => {
+        loadLogs(true);
+        
+        // Detect if user scrolls up
+        scrollContainer.addEventListener('scroll', () => {
+            // Tolerance of 10px
+            if (scrollContainer.scrollTop + scrollContainer.clientHeight < scrollContainer.scrollHeight - 10) {
+                isUserScrolledUp = true;
+            } else {
+                isUserScrolledUp = false;
+            }
+        });
+    });
+
+    function forceRefresh() {
+        loadLogs(true);
+    }
+
+    function loadLogs(force = false) {
+        // If user is scrolled up and not forcing, skip update
+        if (isUserScrolledUp && !force) {
+            return;
+        }
+
+        fetch('/api/logs')
+            .then(response => response.json())
+            .then(data => {
+                const html = ansi_up.ansi_to_html(data.logs.join(''));
+                logContainer.innerHTML = html;
+                
+                // Scroll to bottom if we were at bottom or forced
+                if (!isUserScrolledUp || force) {
+                    scrollContainer.scrollTop = scrollContainer.scrollHeight;
+                }
+            })
+            .catch(err => console.error('Error loading logs:', err));
+    }
+    
+    // Auto refresh every 2 seconds
+    setInterval(() => loadLogs(false), 2000);
+</script>
+{% endblock %}

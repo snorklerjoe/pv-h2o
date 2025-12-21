@@ -20,6 +20,15 @@
             </li>
             {% if current_user.is_authenticated %}
             <li class="nav-item">
+              <a class="nav-link" href="{{ url_for('main.settings') }}">Settings</a>
+            </li>
+            <li class="nav-item">
+              <a class="nav-link" href="{{ url_for('main.calibration') }}">Calibration</a>
+            </li>
+            <li class="nav-item">
+              <a class="nav-link" href="{{ url_for('main.logs') }}">Logs</a>
+            </li>
+            <li class="nav-item">
               <a class="nav-link" href="{{ url_for('main.logout') }}">Logout</a>
             </li>
             {% else %}

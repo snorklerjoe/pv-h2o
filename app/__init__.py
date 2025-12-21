@@ -18,6 +18,10 @@ from flask_login import LoginManager
 from flask_apscheduler import APScheduler
 from loguru import logger
 import traceback
+
+# Configure logger
+logger.add("app.log", rotation="1 MB", retention="10 days", colorize=True)
+
 db = SQLAlchemy()
 scheduler = APScheduler()
 login = LoginManager()
@@ -35,6 +39,19 @@ from .statusdisplay import splash_screen, start_status_display
 from .dynconfig import DynConfig, MalformedConfigException
 
 def initialize_backend():
+    db.create_all()
+    # Create default user if none exists
+    from app.models import User
+    try:
+        if User.query.first() is None:
+            logger.info("No users found. Creating default admin user.")
+            u = User(username='admin')
+            u.set_password('1234')
+            db.session.add(u)
+            db.session.commit()
+    except Exception as e:
+        logger.error(f"Error checking/creating default user: {e}")
+
     # Fetch dynamic configuration from the database
     DynConfig.fetch_config()
     if not DynConfig.initialized:
@@ -76,7 +93,7 @@ def initialize_backend():
     @scheduler.task('interval', id='watchdog', seconds=Config.WATCDOG_PERIOD_SEC, misfire_grace_time=3*Config.WATCDOG_PERIOD_SEC)
     def watchdog():
         was_not_tripped: bool = not WatchdogTrigger.is_tripped
-        for check in WatchdogTrigger.all_triggers:
+        for check in list(WatchdogTrigger.all_triggers):
             check.run_check()
         if was_not_tripped and WatchdogTrigger.is_tripped and DynConfig.notify_email_enabled():  # Send a notification if something just happened
             notifier.send_alert(
@@ -142,6 +159,9 @@ def create_app(config_class=Config):
     logger.debug("Registering blueprints")
     from app.routes import bp as main_bp
     app.register_blueprint(main_bp)
+
+    from app.api import bp as api_bp
+    app.register_blueprint(api_bp, url_prefix='/api')
 
     logger.info("Web app initialized.")
     return app
