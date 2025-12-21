@@ -1,9 +1,10 @@
 """ This module handles calibration tables and actually calculating the calibrated values.
 """
 
-from app.models import SensorId, CalibrationPoint
+from app.models import CalibrationPoint
 from functools import cached_property
 from typing import Dict, List, Optional
+from app.constants import SensorId
 
 class CalibrationRegistry:
     """
@@ -84,14 +85,11 @@ class SensorReading:
     """
     A raw value and a cal'd value, based on a calibration table
     """
-    def __init__(self, measured_val: float, cal_table: CalTable):
+    def __init__(self, measured_val: float, sensor_id: SensorId):
         self.meas = measured_val
-        self.cal_table = cal_table
-    
+        self.sensor_id = sensor_id
+
     @cached_property
     def cald(self) -> float:
         """ The calibrated value """
-        return self.cal_table.apply_cal(self.meas)
-
-
-
+        return CalibrationRegistry.get_points(self.sensor_id).apply_cal(self.meas)

@@ -5,20 +5,6 @@ from werkzeug.security import generate_password_hash, check_password_hash
 from enum import Enum
 from config import Config
 
-class SensorId(Enum):
-    # Misc. sensors
-    t0 = "t0"    # Temperature of unheated water entering the setup
-
-    # Circuit 1
-    v1 = "v1"  # Voltage
-    i1 = "i1"  # Current
-    t1 = "t1"  # Temperature
-
-    # Circuit 2
-    v2 = "v2"  # Voltage
-    i2 = "i2"  # Current
-    t2 = "t2"  # Temperature
-
 class User(UserMixin, db.Model):
     id = db.Column(db.Integer, primary_key=True)
     username = db.Column(db.String(64), index=True, unique=True)

@@ -1,44 +1,43 @@
 from abc import ABC, abstractmethod
-from typing import Type
+from typing import Type, Dict, Any
 
-class BaseSensorDriver(ABC):
-    _instances = {}
+class HardwareDriver(ABC):
+    _instances: Dict[str, Type] = {}
 
-    def get_driver(key: str) -> Type:
-        """ Turns a string into the specified driver class """
-        return BaseSensorDriver._instances[key]
-    
-    def regster_driver(key: str):
-        """ Drivers should use this as a decorator to specify a string-key to use in the db """
-        def decorator(cls):
-            BaseSensorDriver._instances[key] = cls
-            return cls
-        return decorator
-
-    def __init__(self, params=None):
+    def __init__(self, params: Dict[str, Any] = None):
         self.params = params or {}
+
+    @classmethod
+    def get_driver(cls, key: str) -> Type:
+        """ Turns a string into the specified driver class """
+        return cls._instances[key]
+
+    @classmethod
+    def register_driver(cls, key: str):
+        """ Drivers should use this as a decorator to specify a string-key to use in the db """
+        def decorator(subclass):
+            cls._instances[key] = subclass
+            return subclass
+        return decorator
+    
+    # Backwards compatibility for the typo in previous version
+    regster_driver = register_driver
+
+    @abstractmethod
+    def hardware_init(self):
+        """Initialize the hardware connection."""
+        pass
+
+class BaseSensorDriver(HardwareDriver):
+    _instances = {}
 
     @abstractmethod
     def read(self):
         """Read the sensor value and return it."""
         pass
 
-class BaseOutputDriver(ABC):
+class BaseOutputDriver(HardwareDriver):
     _instances = {}
-
-    def get_driver(key: str) -> Type:
-        """ Turns a string into the specified driver class """
-        return BaseOutputDriver._instances[key]
-    
-    def regster_driver(key: str):
-        """ Drivers should use this as a decorator to specify a string-key to use in the db """
-        def decorator(cls):
-            BaseOutputDriver._instances[key] = cls
-            return cls
-        return decorator
-
-    def __init__(self, params=None):
-        self.params = params or {}
 
     @abstractmethod
     def set_state(self, state):
@@ -50,23 +49,8 @@ class BaseOutputDriver(ABC):
         """Get the current state."""
         pass
 
-class BaseLCDDriver(ABC):
+class BaseLCDDriver(HardwareDriver):
     _instances = {}
-
-    def get_driver(key: str) -> Type:
-        """ Turns a string into the specified driver class """
-        return BaseLCDDriver._instances[key]
-    
-    def regster_driver(key: str):
-        """ Drivers should use this as a decorator to specify a string-key to use in the db """
-        def decorator(cls):
-            BaseLCDDriver._instances[key] = cls
-            return cls
-        return decorator
-
-
-    def __init__(self, params=None):
-        self.params = params or {}
 
     @abstractmethod
     def write_line(self, line_num, text):

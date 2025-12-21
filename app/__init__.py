@@ -1,11 +1,34 @@
+import sys
 from flask import Flask
 from config import Config
 from flask_sqlalchemy import SQLAlchemy
 from flask_login import LoginManager
+from loguru import logger
 
 db = SQLAlchemy()
 login = LoginManager()
 login.login_view = 'login'
+
+# Import these after db is defined to avoid circular imports
+from .dynconfig import DynConfig, MalformedConfigException
+
+def initialize_backend():
+    # Fetch dynamic configuration from the database
+    DynConfig.fetch_config()
+    if not DynConfig.initialized:
+        logger.critical("Cannot fetch config from database. Aborting.")
+        sys.exit(1)
+    
+    # Initialize & configure hardware drivers
+    from app.hardware import initialize_drivers
+    try:
+        initialize_drivers()
+    except ValueError:
+        logger.critical("Cannot initialize hardware drivers. Aborting.")
+        sys.exit(1)
+    except MalformedConfigException:
+        logger.critical("Malformed driver configuration; cannot initialize hardware. Aborting.")
+        sys.exit(1)
 
 def create_app(config_class=Config):
     app = Flask(__name__)
@@ -15,13 +38,6 @@ def create_app(config_class=Config):
     login.init_app(app)
 
     from app import routes, models
-    
-    # Register routes directly for now, or use blueprints if it gets larger
-    # For simplicity in this initial setup, we'll import routes to register them
-    # with the app instance if we were using the single-module pattern, 
-    # but with the factory pattern, we usually use blueprints.
-    # Let's stick to a simple app context push for now or define routes in routes.py 
-    # taking app as argument, or better yet, use a Blueprint.
     
     from app.routes import bp as main_bp
     app.register_blueprint(main_bp)
