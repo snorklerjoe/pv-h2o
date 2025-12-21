@@ -11,6 +11,7 @@ For now, it seems that would be an unnecessary level of overcomplication.
 """
 
 import sys
+import signal
 from flask import Flask
 from config import Config
 from flask_sqlalchemy import SQLAlchemy
@@ -38,7 +39,21 @@ from .statusdisplay import splash_screen, start_status_display
 # Import these after db is defined to avoid circular imports
 from .dynconfig import DynConfig, MalformedConfigException
 
+def shutdown_handler(signum, frame):
+    logger.info(f"Received signal {signum}. Shutting down...")
+    from app.hardware import deinitialize_hardware
+    try:
+        deinitialize_hardware(force=True)
+        logger.info("Hardware de-initialized successfully.")
+    except Exception as e:
+        logger.error(f"Error de-initializing hardware: {e}")
+    sys.exit(0)
+
 def initialize_backend():
+    # Register signal handlers
+    signal.signal(signal.SIGINT, shutdown_handler)
+    signal.signal(signal.SIGTERM, shutdown_handler)
+
     db.create_all()
     # Create default user if none exists
     from app.models import User
@@ -123,7 +138,9 @@ def initialize_backend():
 
 
 def create_app(config_class=Config):
-    logger.info("Initializing web application")
+    logger.info(f"Photovoltaic hot water control software (code commit version {Config.COMMIT_SHA})")
+    logger.info("Starting...")
+
     app = Flask(__name__)
     app.config.from_object(config_class)
 
@@ -134,7 +151,7 @@ def create_app(config_class=Config):
     try:
         scheduler.init_app(app)
     except SchedulerAlreadyRunningError:
-        pass
+        logger.warning("Scheduler already running. Cannot initialize with app context.")
 
     # Set up backend stuff
     global _backend_initialized   # Ensure we only initialize things ONCE

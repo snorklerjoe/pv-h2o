@@ -1,0 +1,77 @@
+/* Theme: Neon Dark */
+[data-theme="neon"] {
+    --bs-body-bg: #0a0a12;
+    --bs-body-color: #e0e0e0;
+    --bs-primary: #00ff9d;
+    --bs-primary-rgb: 0, 255, 157;
+    --bs-secondary: #b300ff;
+    --bs-secondary-rgb: 179, 0, 255;
+    --bs-success: #00ff00;
+    --bs-info: #00ccff;
+    --bs-warning: #ffcc00;
+    --bs-danger: #ff0055;
+    --bs-card-bg: #14141f;
+    --bs-card-border-color: #2a2a3d;
+}
+
+[data-theme="neon"] .navbar {
+    background-color: #050508 !important;
+    border-bottom: 1px solid var(--bs-primary);
+}
+
+[data-theme="neon"] .card {
+    box-shadow: 0 0 15px rgba(0, 255, 157, 0.1);
+    border: 1px solid #2a2a3d;
+}
+
+[data-theme="neon"] .btn-primary {
+    background-color: transparent;
+    border-color: var(--bs-primary);
+    color: var(--bs-primary);
+    box-shadow: 0 0 10px rgba(0, 255, 157, 0.2);
+}
+
+[data-theme="neon"] .btn-primary:hover {
+    background-color: var(--bs-primary);
+    color: #000;
+    box-shadow: 0 0 20px rgba(0, 255, 157, 0.6);
+}
+
+/* Theme: Solarized */
+[data-theme="solarized"] {
+    --bs-body-bg: #fdf6e3;
+    --bs-body-color: #657b83;
+    --bs-primary: #268bd2;
+    --bs-secondary: #2aa198;
+    --bs-card-bg: #eee8d5;
+    --bs-card-border-color: #93a1a1;
+}
+
+[data-theme="solarized"] .navbar {
+    background-color: #073642 !important;
+}
+
+/* Log Viewer Styles */
+.log-viewer {
+    background-color: #0a0a0a; /* Darker than bg-dark (#212529) */
+    color: #e0e0e0;
+}
+
+/* ANSI Colors for Logs */
+.ansi-black-fg { color: #3E424D; }
+.ansi-red-fg { color: #E75C58; }
+.ansi-green-fg { color: #00E060; }
+.ansi-yellow-fg { color: #DDB700; }
+.ansi-blue-fg { color: #5ca1ff; } /* Lighter blue */
+.ansi-magenta-fg { color: #D16D9E; }
+.ansi-cyan-fg { color: #00D7E2; }
+.ansi-white-fg { color: #C0C5CE; }
+
+.ansi-bright-black-fg { color: #7F8C8D; }
+.ansi-bright-red-fg { color: #FF7369; }
+.ansi-bright-green-fg { color: #5EF195; }
+.ansi-bright-yellow-fg { color: #F9E267; }
+.ansi-bright-blue-fg { color: #74b1ff; }
+.ansi-bright-magenta-fg { color: #E192C2; }
+.ansi-bright-cyan-fg { color: #66F2F9; }
+.ansi-bright-white-fg { color: #FFFFFF; }

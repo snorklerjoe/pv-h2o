@@ -115,6 +115,7 @@ def update_config():
     
     conf.value = str(value) # Store as string
     db.session.commit()
+    # Force the configuration in memory to pull the latest version
     DynConfig.reload()
     
     return jsonify({'success': True})

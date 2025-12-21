@@ -13,3 +13,4 @@ python-dotenv
 tzdata
 loguru
 pytest
+gitpython

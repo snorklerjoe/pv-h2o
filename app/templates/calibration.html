@@ -48,8 +48,29 @@
 </div>
 
 <script>
-    document.addEventListener('DOMContentLoaded', loadCalibration);
+    document.addEventListener('DOMContentLoaded', () => {
+        loadCalibration();
+        updateStatus();
+        setInterval(updateStatus, 2000);
+    });
+    
     let addModal;
+    let currentValues = {};
+
+    function updateStatus() {
+        fetch('/api/status')
+            .then(response => response.json())
+            .then(data => {
+                currentValues = data.sensors; // Store for modal
+                for (const [sensor, val] of Object.entries(data.sensors)) {
+                    const rawEl = document.getElementById(`raw-${sensor}`);
+                    const calEl = document.getElementById(`cal-${sensor}`);
+                    if (rawEl) rawEl.textContent = val.raw.toFixed(2);
+                    if (calEl) calEl.textContent = val.calibrated.toFixed(2);
+                }
+            })
+            .catch(err => console.error('Error fetching status:', err));
+    }
 
     function loadCalibration() {
         fetch('/api/calibration')
@@ -58,14 +79,22 @@
                 const container = document.getElementById('calibration-container');
                 container.innerHTML = '';
 
-                for (const [sensor, points] of Object.entries(data)) {
+                // Sort keys
+                const sensors = Object.keys(data).sort();
+
+                sensors.forEach(sensor => {
+                    const points = data[sensor];
                     const card = document.createElement('div');
                     card.className = 'card mb-4';
                     
                     const header = document.createElement('div');
                     header.className = 'card-header d-flex justify-content-between align-items-center';
                     header.innerHTML = `<h5 class="mb-0">${sensor}</h5>
-                        <button class="btn btn-sm btn-primary" onclick="openAddModal('${sensor}')">Add Point</button>`;
+                        <div>
+                            <span class="badge bg-secondary me-2">Raw: <span id="raw-${sensor}">--</span></span>
+                            <span class="badge bg-success me-2">Cal: <span id="cal-${sensor}">--</span></span>
+                            <button class="btn btn-sm btn-primary" onclick="openAddModal('${sensor}')">Add Point</button>
+                        </div>`;
                     
                     const body = document.createElement('div');
                     body.className = 'card-body';
@@ -93,14 +122,24 @@
                     card.appendChild(header);
                     card.appendChild(body);
                     container.appendChild(card);
-                }
+                });
+                
+                // Trigger an immediate status update to fill values
+                updateStatus();
             })
             .catch(err => console.error('Error loading calibration:', err));
     }
 
     function openAddModal(sensor) {
         document.getElementById('modal-sensor-name').value = sensor;
-        document.getElementById('measured-val').value = '';
+        
+        // Auto-populate raw value
+        if (currentValues[sensor]) {
+             document.getElementById('measured-val').value = currentValues[sensor].raw;
+        } else {
+             document.getElementById('measured-val').value = '';
+        }
+
         document.getElementById('actual-val').value = '';
         
         if (!addModal) {

@@ -1,5 +1,9 @@
 import os
 from zoneinfo import ZoneInfo
+import git
+
+_this_git_repo = git.Repo(search_parent_directories=True)
+_commit_sha = _this_git_repo.head.object.hexsha
 
 class Config:
     SECRET_KEY = os.environ.get('SECRET_KEY') or 'you-will-never-guess'
@@ -16,3 +20,5 @@ class Config:
     WATCDOG_PERIOD_SEC = 90
 
     SUMMARY_RUN_HOUR = 22
+
+    COMMIT_SHA = _commit_sha
