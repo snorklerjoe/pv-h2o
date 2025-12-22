@@ -6,6 +6,25 @@
     <div class="col-md-12">
         <h1>System Logs</h1>
         <div class="card">
+            <div class="card-header">
+                <div class="row align-items-center">
+                    <div class="col-auto">
+                        <label for="logLevel" class="col-form-label">Min Log Level:</label>
+                    </div>
+                    <div class="col-auto">
+                        <select class="form-select" id="logLevel" onchange="forceRefresh()">
+                            <option value="DEBUG" selected>DEBUG</option>
+                            <option value="INFO">INFO</option>
+                            <option value="WARNING">WARNING</option>
+                            <option value="ERROR">ERROR</option>
+                            <option value="CRITICAL">CRITICAL</option>
+                        </select>
+                    </div>
+                    <div class="col">
+                        <button class="btn btn-secondary float-end" onclick="forceRefresh()">Refresh Logs</button>
+                    </div>
+                </div>
+            </div>
             <div class="card-body text-light log-viewer" id="log-scroll-container" style="height: 500px; overflow-y: scroll; font-family: monospace;">
                 <pre id="log-container" class="m-0" style="white-space: pre-wrap;"></pre>
             </div>
@@ -13,7 +32,6 @@
         <div class="mt-2">
             <small class="text-muted">Auto-updates only when scrolled to bottom.</small>
         </div>
-        <button class="btn btn-secondary mt-3" onclick="forceRefresh()">Refresh Logs</button>
     </div>
 </div>
 
@@ -47,8 +65,10 @@
         if (isUserScrolledUp && !force) {
             return;
         }
+        
+        const level = document.getElementById('logLevel').value;
 
-        fetch('/api/logs')
+        fetch(`/api/logs?level=${level}`)
             .then(response => response.json())
             .then(data => {
                 const html = ansi_up.ansi_to_html(data.logs.join(''));

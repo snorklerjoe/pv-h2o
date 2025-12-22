@@ -4,6 +4,7 @@ from app import db
 from app.models import User
 from app.forms import LoginForm
 from app.dynconfig import DynConfig, ConfigCategory
+from loguru import logger
 
 bp = Blueprint('main', __name__)
 
@@ -24,9 +25,11 @@ def login():
     if form.validate_on_submit():
         user = User.query.filter_by(username=form.username.data).first()
         if user is None or not user.check_password(form.password.data):
+            logger.warning(f"Failed login attempt for user: {form.username.data}")
             flash('Invalid username or password')
             return redirect(url_for('main.login'))
         login_user(user, remember=form.remember_me.data)
+        logger.info(f"User logged in: {user.username}")
         next_page = request.args.get('next')
         if not next_page or url_for('main.index') not in next_page:
             next_page = url_for('main.index')
@@ -35,6 +38,7 @@ def login():
 
 @bp.route('/logout')
 def logout():
+    logger.info(f"User logged out: {current_user.username}")
     logout_user()
     return redirect(url_for('main.index'))
 

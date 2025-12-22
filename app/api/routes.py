@@ -14,6 +14,7 @@ from datetime import datetime, timedelta
 
 from app.watchdog import WatchdogTrigger
 from config import Config
+from loguru import logger
 
 @bp.route('/status', methods=['GET'])
 def get_status():
@@ -103,12 +104,15 @@ def toggle_watchdog_enable(name):
     db.session.commit()
     DynConfig.reload()
     
+    logger.info(f"Watchdog trigger '{name}' enabled={enabled}")
+    
     return jsonify({'success': True})
 
 @bp.route('/watchdog/clear', methods=['POST'])
 @login_required
 def clear_watchdog():
     """ Clear all watchdog alarms """
+    logger.info("Clearing all watchdog alarms")
     WatchdogTrigger.clear_alarm()
     return jsonify({'success': True})
 
@@ -161,6 +165,7 @@ def set_circuit_enable():
             conf.value = str(current_states)
             db.session.commit()
             DynConfig.reload()
+            logger.info(f"Circuit {circuit_idx} enabled={enabled}")
             return jsonify({'success': True, 'new_state': current_states})
         else:
              return jsonify({'error': 'Config key not found'}), 500
@@ -186,6 +191,7 @@ def set_relay_state():
     except KeyError:
         return jsonify({'error': 'Invalid relay name'}), 400
 
+    logger.info(f"Manual relay set: {relay_name} = {state}")
     HardwareState.set_relay(relay_id, state)
     return jsonify({'success': True})
 
@@ -194,6 +200,7 @@ def set_relay_state():
 def trip_gfci(circuit):
     """ Manually trip a GFCI circuit """
     if gfci_driver:
+        logger.warning(f"Manual GFCI trip for circuit {circuit}")
         gfci_driver.set_tripped(circuit)
         return jsonify({'success': True})
     return jsonify({'error': 'No GFCI driver'}), 500
@@ -203,6 +210,7 @@ def trip_gfci(circuit):
 def reset_gfci(circuit):
     """ Manually reset a GFCI circuit """
     if gfci_driver:
+        logger.info(f"Manual GFCI reset for circuit {circuit}")
         gfci_driver.reset_tripped(circuit)
         return jsonify({'success': True})
     return jsonify({'error': 'No GFCI driver'}), 500
@@ -266,6 +274,9 @@ def update_config():
     
     conf.value = str(value) # Store as string
     db.session.commit()
+    
+    logger.info(f"Config updated: {key} = {value}")
+    
     # Force the configuration in memory to pull the latest version
     DynConfig.reload()
     
@@ -278,11 +289,33 @@ def update_config():
 @bp.route('/logs', methods=['GET'])
 @login_required
 def get_logs():
-    """ Get last N lines of logs """
+    """ Get last N lines of logs, optionally filtered by level """
+    level = request.args.get('level', 'DEBUG').upper()
+    levels = ['DEBUG', 'INFO', 'WARNING', 'ERROR', 'CRITICAL']
+    
+    try:
+        level_idx = levels.index(level)
+    except ValueError:
+        level_idx = 0 # Default to DEBUG if invalid
+        
+    target_levels = levels[level_idx:]
+    
     try:
         with open("app.log", "r") as f:
             lines = f.readlines()
-            return jsonify({'logs': lines[-100:]}) # Return last 100 lines
+            
+            filtered_lines = []
+            for line in lines:
+                # Check if any of the target levels are in the line
+                # This is a bit heuristic but works for standard loguru format
+                # We check for the level name surrounded by spaces or pipes to avoid partial matches
+                # But loguru output is usually "| LEVEL    |"
+                for l in target_levels:
+                    if l in line:
+                        filtered_lines.append(line)
+                        break
+            
+            return jsonify({'logs': filtered_lines[-100:]}) # Return last 100 lines
     except FileNotFoundError:
         return jsonify({'logs': []})
 

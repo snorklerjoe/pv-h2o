@@ -124,6 +124,8 @@ class HardwareState:
             
             # Ask the driver to change the state of the relay for us, and block until it's done
             driver.set_state(new_state)
+            
+            logger.info(f"Relay {id.name} changed state: {cur_state} -> {new_state}")
 
             # Keep track of the change
             HardwareState._relay_states[id] = new_state

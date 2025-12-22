@@ -5,6 +5,7 @@ from enum import Enum
 from typing import Type, Optional
 
 from app.dynconfig import DynConfig
+from loguru import logger
 
 class WatchdogTrigger(ABC):
     """ Specifies a particular thing to be checking for.
@@ -25,15 +26,21 @@ class WatchdogTrigger(ABC):
     
     @classmethod
     def trigger_alarm_state(cls):
-        cls._alarm_state = True
-        
         # Only trip the master alarm if this trigger is NOT excluded
         if cls.__name__ not in DynConfig.watchdog_excludes:
+            if not WatchdogTrigger._alarm_state: # Only log on transition
+                 logger.critical(f"Watchdog ALARM triggered by {cls.__name__}")
+            
+            cls._alarm_state = True
             WatchdogTrigger._alarm_state = True
             WatchdogTrigger._triggered_check = cls
+        else:
+            logger.warning(f"Watchdog trigger {cls.__name__} met, but excluded from alarm.")
 
     @staticmethod
     def clear_alarm():
+        if WatchdogTrigger._alarm_state:
+             logger.info("Clearing all watchdog alarms")
         for trigger in WatchdogTrigger._all_triggers:
             trigger.clear()
         WatchdogTrigger._alarm_state = False

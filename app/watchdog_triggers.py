@@ -40,8 +40,9 @@ class OverCurrentTrigger(WatchdogTrigger):
             i1 = reading.cald
             if i1 > limit:
                 cls.trigger_alarm_state()
-                HardwareState.set_relay(RelayId.circ1, False)
-                disable_circuit(0)
+                if cls.is_tripped():
+                    HardwareState.set_relay(RelayId.circ1, False)
+                    disable_circuit(0)
             
         # Check Circuit 2
         reading = HardwareState.cur_sensor_values[SensorId.i2]
@@ -49,8 +50,9 @@ class OverCurrentTrigger(WatchdogTrigger):
             i2 = reading.cald
             if i2 > limit:
                 cls.trigger_alarm_state()
-                HardwareState.set_relay(RelayId.circ2, False)
-                disable_circuit(1)
+                if cls.is_tripped():
+                    HardwareState.set_relay(RelayId.circ2, False)
+                    disable_circuit(1)
 
     @classmethod
     def notify_state(cls) -> str:
@@ -69,8 +71,9 @@ class OverTemperatureTrigger(WatchdogTrigger):
             t1 = reading.cald
             if t1 > limit:
                 cls.trigger_alarm_state()
-                HardwareState.set_relay(RelayId.circ1, False)
-                disable_circuit(0)
+                if cls.is_tripped():
+                    HardwareState.set_relay(RelayId.circ1, False)
+                    disable_circuit(0)
             
         # Check Tank 2
         reading = HardwareState.cur_sensor_values[SensorId.t2]
@@ -78,8 +81,9 @@ class OverTemperatureTrigger(WatchdogTrigger):
             t2 = reading.cald
             if t2 > limit:
                 cls.trigger_alarm_state()
-                HardwareState.set_relay(RelayId.circ2, False)
-                disable_circuit(1)
+                if cls.is_tripped():
+                    HardwareState.set_relay(RelayId.circ2, False)
+                    disable_circuit(1)
 
     @classmethod
     def notify_state(cls) -> str:
@@ -102,8 +106,9 @@ class SubnominalResistanceTrigger(WatchdogTrigger):
                 r1 = v1 / i1
                 if r1 < min_ohms:
                     cls.trigger_alarm_state()
-                    HardwareState.set_relay(RelayId.circ1, False)
-                    disable_circuit(0)
+                    if cls.is_tripped():
+                        HardwareState.set_relay(RelayId.circ1, False)
+                        disable_circuit(0)
 
         # Check Circuit 2
         r_v2 = HardwareState.cur_sensor_values[SensorId.v2]
@@ -115,8 +120,9 @@ class SubnominalResistanceTrigger(WatchdogTrigger):
                 r2 = v2 / i2
                 if r2 < min_ohms:
                     cls.trigger_alarm_state()
-                    HardwareState.set_relay(RelayId.circ2, False)
-                    disable_circuit(1)
+                    if cls.is_tripped():
+                        HardwareState.set_relay(RelayId.circ2, False)
+                        disable_circuit(1)
 
     @classmethod
     def notify_state(cls) -> str:
@@ -136,8 +142,9 @@ class LeakageCurrentTrigger(WatchdogTrigger):
                 i1 = reading.cald
                 if i1 > threshold:
                     cls.trigger_alarm_state()
-                    HardwareState.set_relay(RelayId.circ1, False)
-                    disable_circuit(0)
+                    if cls.is_tripped():
+                        HardwareState.set_relay(RelayId.circ1, False)
+                        disable_circuit(0)
 
         # Check Circuit 2
         if not HardwareState.get_relay_state(RelayId.circ2):
@@ -146,8 +153,9 @@ class LeakageCurrentTrigger(WatchdogTrigger):
                 i2 = reading.cald
                 if i2 > threshold:
                     cls.trigger_alarm_state()
-                    HardwareState.set_relay(RelayId.circ2, False)
-                    disable_circuit(1)
+                    if cls.is_tripped():
+                        HardwareState.set_relay(RelayId.circ2, False)
+                        disable_circuit(1)
 
     @classmethod
     def notify_state(cls) -> str:
