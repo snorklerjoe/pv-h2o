@@ -12,6 +12,7 @@ import os
 from datetime import datetime, timedelta
 
 from app.watchdog import WatchdogTrigger
+from config import Config
 
 @bp.route('/status', methods=['GET'])
 def get_status():
@@ -282,15 +283,19 @@ def get_history():
 
     if start_str:
         try:
-            start = datetime.fromisoformat(start_str.replace('Z', '+00:00'))
-            query = query.filter(Measurement.timestamp >= start)
+            start_utc = datetime.fromisoformat(start_str.replace('Z', '+00:00'))
+            # Convert to local time and make naive for DB comparison
+            start_local = start_utc.astimezone(Config.TIMEZONE).replace(tzinfo=None)
+            query = query.filter(Measurement.timestamp >= start_local)
         except ValueError:
             pass # Ignore invalid date
             
     if end_str:
         try:
-            end = datetime.fromisoformat(end_str.replace('Z', '+00:00'))
-            query = query.filter(Measurement.timestamp <= end)
+            end_utc = datetime.fromisoformat(end_str.replace('Z', '+00:00'))
+            # Convert to local time and make naive for DB comparison
+            end_local = end_utc.astimezone(Config.TIMEZONE).replace(tzinfo=None)
+            query = query.filter(Measurement.timestamp <= end_local)
         except ValueError:
             pass
 
@@ -301,8 +306,15 @@ def get_history():
     query = query.order_by(Measurement.timestamp.asc())
     results = query.all()
 
+    # Convert timestamps to aware ISO strings
+    timestamps = []
+    for m in results:
+        # Attach timezone info (DB stores naive local time)
+        ts_aware = m.timestamp.replace(tzinfo=Config.TIMEZONE)
+        timestamps.append(ts_aware.isoformat())
+
     data = {
-        'timestamps': [m.timestamp.isoformat() for m in results],
+        'timestamps': timestamps,
         'sensors': {}
     }
 
