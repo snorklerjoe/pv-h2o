@@ -8,6 +8,8 @@ from .hardware_constants import RelayId, SensorId
 from threading import Thread
 from time import sleep
 from config import Config
+from loguru import logger
+from flask import current_app
 
 class Regulator:
     """ Singleton that handles overall regulation of things """
@@ -21,23 +23,30 @@ class Regulator:
         return cls._instance
 
     def __init__(self):
-        self._status_repr = "~ Regulator hook not yet executed. ~"
+        if not Regulator._initialized:
+            self._status_repr = "~ Regulator hook not yet executed. ~"
+            self._thread: Thread | None = None
+            Regulator._initialized = True
 
-    @staticmethod
-    def start_regulation():
+    def start_regulation(self, app):
         def loop():
-            regulator = Regulator()
-            while True:
-                try:
-                    regulator.hook()
+            with app.app_context():
+                from loguru import logger
+                logger.info("Starting regulation loop")
+                regulator = Regulator()
+                sleep(DynConfig.polling_rate_seconds * 1.5)
+                while True:
+                    try:
+                        logger.debug("Running regulator hook...")
+                        regulator.hook()
+                        logger.debug("Ran regulator hook.")
+                    except Exception as e:
+                        logger.exception("Error in regulation loop")
                     sleep(DynConfig.polling_rate_seconds)
-                except Exception as e:
-                    from loguru import logger
-                    logger.exception("Error in regulation loop")
-                sleep(DynConfig.polling_rate_seconds)
         
-        thread = Thread(target=loop, name="Regulation Loop", daemon=True)
-        thread.start()
+        logger.info("Creating regulation thread.")
+        self._thread = Thread(target=loop, name="Regulation Loop", daemon=True)
+        self._thread.start()
 
     def _is_light_out(self):  # TODO: Cache sunrise / sunset window for the whole day or for the hour or something
         sunrise, sunset = get_sun_rise_set_time_today()
@@ -52,15 +61,6 @@ class Regulator:
 
     def hook(self):
         """ Runs through sensor measurements and does all necessary regulation. """
-
-        # Don't touch watchdog -- it already runs on its own thread
-        # WatchdogTrigger.check_all()
-        # if WatchdogTrigger.is_tripped:
-        #     # Ensure everything is off
-        #     for relay in RelayId:
-        #         HardwareState.set_relay(relay, False)
-        #     return
-
         if DynConfig.manual_mode:
             self._status_repr = "Manual mode => No regulator action."
             return
@@ -74,7 +74,7 @@ class Regulator:
             return  # no more until the morning.
 
         # Circuit 1 regulation
-        if HardwareState.circuits_enabled[0]:  # If circuit is "turned on"
+        if DynConfig.circuit_states[0]:  # If circuit is "turned on"
             # Check temperature
             reading = HardwareState.cur_sensor_values[SensorId.t1]
             if reading is None:
@@ -99,7 +99,7 @@ class Regulator:
 
 
         # Circuit 2 regulation
-        if HardwareState.circuits_enabled[1]:  # If circuit is "turned on"
+        if DynConfig.circuit_states[1]:  # If circuit is "turned on"
             # Check temperature
             reading = HardwareState.cur_sensor_values[SensorId.t2]
             if reading is None:

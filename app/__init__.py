@@ -136,7 +136,8 @@ def initialize_backend(flask_app):
 
     # Get the regulation loop going
     from .regulation import Regulator
-    Regulator.start_regulation()
+    regulator = Regulator()
+    regulator.start_regulation(flask_app)
 
     # Begin a thread to handle the status LCD display loop
     start_status_display()
