@@ -1,5 +1,6 @@
 import time
 import threading
+import glob
 from typing import Dict, Any, List
 import numpy as np
 from scipy.stats import trim_mean
@@ -161,6 +162,47 @@ class ArduinoOutputDriver(BaseOutputDriver):
 
     def get_state(self):
         return self._state
+
+@BaseSensorDriver.register_driver("w1_temp_index")
+class W1ThermometerIndexDriver(BaseSensorDriver):
+    def __init__(self, params: Dict[str, Any] = None):
+        super().__init__(params)
+        self.index = int(self.params.get('index', 0))
+        self.base_dir = '/sys/bus/w1/devices/'
+
+    def hardware_init(self):
+        pass
+
+    def hardware_deinit(self):
+        pass
+
+    def read_temp_raw(self):
+        try:
+            device_folder = glob.glob(self.base_dir + '28*')[self.index]
+            device_file = device_folder + '/w1_slave'
+            with open(device_file, 'r') as f:
+                lines = f.readlines()
+            return lines
+        except (IndexError, FileNotFoundError, OSError):
+            logger.error(f"W1 device at index {self.index} not found.")
+            return []
+
+    def read(self) -> float:
+        lines = self.read_temp_raw()
+        if not lines:
+            return 0.0
+            
+        if lines[0].strip()[-3:] != 'YES':
+            return 0.0
+            
+        equals_pos = lines[1].find('t=')
+        if equals_pos != -1:
+            temp_string = lines[1][equals_pos+2:]
+            temp_c = float(temp_string) / 1000.0
+            temp_f = temp_c * 9.0 / 5.0 + 32.0
+            return temp_f
+            
+        return 0.0
 
 @BaseSensorDriver.register_driver("w1_temp")
 class W1ThermometerDriver(BaseSensorDriver):

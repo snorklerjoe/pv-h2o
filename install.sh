@@ -49,6 +49,12 @@ function configure_env() {
     # Ask questions
     DATABASE_URL=$(whiptail --inputbox "Enter DATABASE_URL (leave empty for sqlite)" 10 60 "" 3>&1 1>&2 2>&3)
     
+    if (whiptail --title "Hardware Configuration" --yesno "Is this running on real hardware?" 10 60); then
+        REAL_HARDWARE="True"
+    else
+        REAL_HARDWARE="False"
+    fi
+
     DB_FILE_PATH="$INSTALL_DIR/app.db"
     LOG_FILE_PATH="$INSTALL_DIR/app.log"
 
@@ -58,6 +64,7 @@ SECRET_KEY=$SECRET_KEY
 DATABASE_URL=$DATABASE_URL
 DB_FILE_PATH=$DB_FILE_PATH
 LOG_FILE_PATH=$LOG_FILE_PATH
+REAL_HARDWARE=$REAL_HARDWARE
 EOF
 
     # Allow user to edit

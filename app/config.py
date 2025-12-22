@@ -30,3 +30,5 @@ class Config:
     SUMMARY_RUN_HOUR = 22
 
     COMMIT_SHA = _commit_sha
+
+    REAL_HARDWARE = os.environ.get('REAL_HARDWARE', 'False').lower() in ('true', '1', 't')

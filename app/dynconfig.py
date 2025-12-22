@@ -1,5 +1,6 @@
 """ Dynamic configuration from the database """
 
+from app.config import Config
 from app.models import SystemConfig
 from app.hardware_constants import SensorId, RelayId
 from app.utils import classproperty
@@ -184,9 +185,31 @@ class DynConfig:
     notify_to_emails = conf_property("notify_to_emails", "john@example.com,bob@example.com", "Comma-separated list of notification emails", ConfigCategory.NOTIFICATIONS, lambda x: True, "text")
 
     # Drivers for things
-    driver_sensors = conf_property_evald("driver_sensors", "{" + ', '.join([f"\"{key.value}\":(\"dummy\", {{ 'value': 2.0, 'noise': 1.0 }})" for key in SensorId]) + "}", "Sensor Driver Configuration; note that drivers do not update until restart.", ConfigCategory.DRIVERS, lambda x: isinstance(x, dict), "json")
-    driver_relays = conf_property_evald("driver_relays", "{" + ', '.join([f"\"{key.value}\":(\"gfci_relay\", {{ 'circuit': {1 if key.value == 'gfci1' else 2} }})" if key.value.startswith('gfci') else f"\"{key.value}\":(\"dummy\", {{ }})" for key in RelayId]) + "}", "Relay Driver Configuration", ConfigCategory.DRIVERS, lambda x: isinstance(x, dict), "json")
-    driver_lcd = conf_property_evald("driver_lcd", "(\"dummy\", {})", "LCD Driver Configuration", ConfigCategory.DRIVERS, lambda x: isinstance(x, dict), "text")
+    if Config.REAL_HARDWARE:
+        _default_sensors = str({
+            "t0": ("w1_temp_index", {"index": 1}),
+            "t1": ("w1_temp_index", {"index": 0}),
+            "t2": ("w1_temp_index", {"index": 2}),
+            "v1": ("arduino", {"command": 6}),
+            "v2": ("arduino", {"command": 7}),
+            "i1": ("arduino", {"command": 4}),
+            "i2": ("arduino", {"command": 5})
+        })
+        _default_relays = str({
+            "circ1": ("arduino", {"on_command": 0, "off_command": 1}),
+            "circ2": ("arduino", {"on_command": 2, "off_command": 3}),
+            "gfci1": ("gfci_relay", {"circuit": 1}),
+            "gfci2": ("gfci_relay", {"circuit": 2})
+        })
+        _default_lcd = "('i2c_lcd', {'address': 0x27, 'bus_num': 1})"
+    else:
+        _default_sensors = "{" + ', '.join([f"\"{key.value}\":(\"dummy\", {{ 'value': 2.0, 'noise': 1.0 }})" for key in SensorId]) + "}"
+        _default_relays = "{" + ', '.join([f"\"{key.value}\":(\"gfci_relay\", {{ 'circuit': {1 if key.value == 'gfci1' else 2} }})" if key.value.startswith('gfci') else f"\"{key.value}\":(\"dummy\", {{ }})" for key in RelayId]) + "}"
+        _default_lcd = "(\"dummy\", {})"
+
+    driver_sensors = conf_property_evald("driver_sensors", _default_sensors, "Sensor Driver Configuration; note that drivers do not update until restart.", ConfigCategory.DRIVERS, lambda x: isinstance(x, dict), "json")
+    driver_relays = conf_property_evald("driver_relays", _default_relays, "Relay Driver Configuration", ConfigCategory.DRIVERS, lambda x: isinstance(x, dict), "json")
+    driver_lcd = conf_property_evald("driver_lcd", _default_lcd, "LCD Driver Configuration", ConfigCategory.DRIVERS, lambda x: isinstance(x, dict), "text")
     driver_gfci = conf_property_evald("driver_gfci", "(\"dummy\", {})", "GFCI Driver Configuration", ConfigCategory.DRIVERS, lambda x: isinstance(x, dict), "text")
 
     # Misc
