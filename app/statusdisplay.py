@@ -34,6 +34,7 @@ def _status_display() -> NoReturn:
     hardware.lcd_driver.set_backlight(False)
     
     while True:
+        hardware.lcd_driver.set_backlight(False)
         try:
             # --- Screen 1: Overview ---
             hardware.lcd_driver.clear()
