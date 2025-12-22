@@ -31,7 +31,7 @@ def _status_display() -> NoReturn:
     if not hardware.lcd_driver:
         return
 
-    hardware.lcd_driver.set_backlight(True)
+    hardware.lcd_driver.set_backlight(False)
     
     while True:
         try:
