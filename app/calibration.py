@@ -7,24 +7,38 @@ from typing import Dict, List, Optional
 import datetime
 from app.hardware_constants import SensorId
 from config import Config
+from dataclasses import dataclass
+
+@dataclass
+class CalPoint:
+    id: int
+    measured_val: float
+    actual_val: float
 
 class CalibrationRegistry:
     """
     Singleton-like registry that holds cached calibration tables.
     """
-    _cache: Dict[SensorId, List[CalibrationPoint]] = {}
+    _cache: Dict[SensorId, List[CalPoint]] = {}
 
     @classmethod
-    def get_points(cls, sensor: SensorId) -> List[CalibrationPoint]:
+    def get_points(cls, sensor: SensorId) -> List[CalPoint]:
         """
         Returns cached points. If not in cache, fetches from DB.
         """
         if sensor not in cls._cache:
             # print(f"Cache miss for {sensor.name}, fetching from DB...")
-            cls._cache[sensor] = CalibrationPoint.query\
+            db_points = CalibrationPoint.query\
                 .filter_by(sensor_id=sensor.value)\
                 .order_by(CalibrationPoint.measured_val)\
                 .all()
+            
+            # Convert to detached dataclasses to avoid DetachedInstanceError
+            cls._cache[sensor] = [
+                CalPoint(id=p.id, measured_val=p.measured_val, actual_val=p.actual_val)
+                for p in db_points
+            ]
+            
         return cls._cache[sensor]
 
     @classmethod
@@ -46,7 +60,7 @@ class CalTable:
         self.sensor = sensor
 
     @property
-    def points(self) -> List[CalibrationPoint]:
+    def points(self) -> List[CalPoint]:
         return CalibrationRegistry.get_points(self.sensor)
 
     def apply_cal(self, value: float) -> float:

@@ -7,12 +7,12 @@
         <h1>System Logs</h1>
         <div class="card">
             <div class="card-header">
-                <div class="row align-items-center">
+                <div class="row align-items-center g-2">
                     <div class="col-auto">
-                        <label for="logLevel" class="col-form-label">Min Log Level:</label>
+                        <label for="logLevel" class="col-form-label">Min Level:</label>
                     </div>
                     <div class="col-auto">
-                        <select class="form-select" id="logLevel" onchange="forceRefresh()">
+                        <select class="form-select form-select-sm" id="logLevel" onchange="forceRefresh()">
                             <option value="DEBUG" selected>DEBUG</option>
                             <option value="INFO">INFO</option>
                             <option value="WARNING">WARNING</option>
@@ -20,8 +20,22 @@
                             <option value="CRITICAL">CRITICAL</option>
                         </select>
                     </div>
+                    <div class="col-auto">
+                        <label for="logLimit" class="col-form-label">Lines:</label>
+                    </div>
+                    <div class="col-auto">
+                        <select class="form-select form-select-sm" id="logLimit" onchange="forceRefresh()">
+                            <option value="100" selected>100</option>
+                            <option value="500">500</option>
+                            <option value="1000">1000</option>
+                            <option value="5000">5000</option>
+                        </select>
+                    </div>
+                    <div class="col-auto">
+                        <input type="text" class="form-control form-select-sm" id="logSearch" placeholder="Search..." onkeyup="if(event.key === 'Enter') forceRefresh()">
+                    </div>
                     <div class="col">
-                        <button class="btn btn-secondary float-end" onclick="forceRefresh()">Refresh Logs</button>
+                        <button class="btn btn-secondary btn-sm float-end" onclick="forceRefresh()">Refresh</button>
                     </div>
                 </div>
             </div>
@@ -67,8 +81,16 @@
         }
         
         const level = document.getElementById('logLevel').value;
+        const limit = document.getElementById('logLimit').value;
+        const search = document.getElementById('logSearch').value;
 
-        fetch(`/api/logs?level=${level}`)
+        const params = new URLSearchParams({
+            level: level,
+            limit: limit,
+            search: search
+        });
+
+        fetch(`/api/logs?${params.toString()}`)
             .then(response => response.json())
             .then(data => {
                 const html = ansi_up.ansi_to_html(data.logs.join(''));

@@ -289,8 +289,14 @@ def update_config():
 @bp.route('/logs', methods=['GET'])
 @login_required
 def get_logs():
-    """ Get last N lines of logs, optionally filtered by level """
+    """ Get last N lines of logs, optionally filtered by level and search term """
     level = request.args.get('level', 'DEBUG').upper()
+    search_term = request.args.get('search', '').lower()
+    try:
+        limit = int(request.args.get('limit', 100))
+    except ValueError:
+        limit = 100
+
     levels = ['DEBUG', 'INFO', 'WARNING', 'ERROR', 'CRITICAL']
     
     try:
@@ -305,17 +311,28 @@ def get_logs():
             lines = f.readlines()
             
             filtered_lines = []
+            # Process in reverse to get the "last N" matching lines efficiently?
+            # Or just filter all and take last N. File isn't likely to be massive in this context.
+            # Let's filter all for simplicity of search.
+            
             for line in lines:
-                # Check if any of the target levels are in the line
-                # This is a bit heuristic but works for standard loguru format
-                # We check for the level name surrounded by spaces or pipes to avoid partial matches
-                # But loguru output is usually "| LEVEL    |"
+                # 1. Check Level
+                level_match = False
                 for l in target_levels:
                     if l in line:
-                        filtered_lines.append(line)
+                        level_match = True
                         break
+                if not level_match:
+                    continue
+
+                # 2. Check Search Term
+                if search_term and search_term not in line.lower():
+                    continue
+                
+                filtered_lines.append(line)
             
-            return jsonify({'logs': filtered_lines[-100:]}) # Return last 100 lines
+            # Return last N lines
+            return jsonify({'logs': filtered_lines[-limit:]}) 
     except FileNotFoundError:
         return jsonify({'logs': []})
 
