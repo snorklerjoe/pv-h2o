@@ -233,6 +233,18 @@ def get_config():
         if meta['is_eval']:
             # Try to get raw string from _confDict
             val = raw_config.get(key, meta['default'])
+            
+            # Special case: For booleans, we want the actual boolean value for the UI switch
+            # For other eval types (like json/list), we want the raw string for editing
+            if meta.get('value_type') == 'boolean':
+                try:
+                    # We can try to eval the raw string, or use getattr. 
+                    # Using getattr ensures we get the same logic as the backend uses.
+                    val = getattr(DynConfig, key)
+                except:
+                    # Fallback to False if eval fails, or maybe keep the string?
+                    # If we keep the string, the UI switch will be unchecked (False).
+                    val = False
         else:
             val = getattr(DynConfig, key)
 
