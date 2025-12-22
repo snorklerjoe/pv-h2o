@@ -1,0 +1,28 @@
+from setuptools import setup, find_packages
+
+setup(
+    name='pv-h2o',
+    version='0.1.0',
+    packages=find_packages(),
+    include_package_data=True,
+    install_requires=[
+        'Flask',
+        'Flask-SQLAlchemy',
+        'Flask-Login',
+        'Flask-WTF',
+        'Flask-APScheduler',
+        'pymysql',
+        'APScheduler',
+        'astral',
+        'requests',
+        'scipy',
+        'numpy',
+        'python-dotenv',
+        'tzdata',
+        'loguru',
+        'gitpython',
+        'smbus2',
+        'RPi.GPIO',
+        'gunicorn',
+    ],
+)

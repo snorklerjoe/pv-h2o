@@ -6,7 +6,7 @@ from functools import cached_property
 from typing import Dict, List, Optional
 import datetime
 from app.hardware_constants import SensorId
-from config import Config
+from app.config import Config
 from dataclasses import dataclass
 
 @dataclass

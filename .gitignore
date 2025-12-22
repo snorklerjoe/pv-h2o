@@ -6,3 +6,5 @@ app.db
 app.log
 app*.log
 *.db*
+build/
+*.egg-info

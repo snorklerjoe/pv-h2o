@@ -7,7 +7,7 @@ from datetime import timedelta, datetime
 from .hardware_constants import RelayId, SensorId
 from threading import Thread
 from time import sleep
-from config import Config
+from app.config import Config
 from loguru import logger
 from flask import current_app
 

@@ -2,7 +2,7 @@ import pytest
 from app import create_app, db
 from app.models import User, Measurement
 from app.hardware_constants import SensorId
-from config import Config
+from app.config import Config
 
 class TestConfig(Config):
     TESTING = True

@@ -13,7 +13,7 @@ For now, it seems that would be an unnecessary level of overcomplication.
 import sys
 import signal
 from flask import Flask
-from config import Config
+from app.config import Config
 from flask_sqlalchemy import SQLAlchemy
 from flask_login import LoginManager
 from flask_apscheduler import APScheduler

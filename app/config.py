@@ -2,8 +2,11 @@ import os
 from zoneinfo import ZoneInfo
 import git
 
-_this_git_repo = git.Repo(search_parent_directories=True)
-_commit_sha = _this_git_repo.head.object.hexsha
+try:
+    _this_git_repo = git.Repo(search_parent_directories=True)
+    _commit_sha = _this_git_repo.head.object.hexsha
+except Exception:
+    _commit_sha = "unknown"
 
 class Config:
     SECRET_KEY = os.environ.get('SECRET_KEY') or 'you-will-never-guess'

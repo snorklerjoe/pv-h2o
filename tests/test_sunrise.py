@@ -2,7 +2,7 @@ import pytest
 import datetime
 from unittest.mock import patch, MagicMock
 from app.sunrise import get_sun_rise_set_time_today
-from config import Config
+from app.config import Config
 
 # Mock Config and DynConfig
 @pytest.fixture

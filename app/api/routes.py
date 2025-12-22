@@ -13,7 +13,7 @@ import os
 from datetime import datetime, timedelta
 
 from app.watchdog import WatchdogTrigger
-from config import Config
+from app.config import Config
 from loguru import logger
 
 @bp.route('/status', methods=['GET'])

@@ -5,7 +5,7 @@ import threading
 from loguru import logger
 from datetime import datetime
 from typing import Optional
-from config import Config
+from app.config import Config
 from .calibration import SensorReading
 from .hardware import sensor_drivers, relay_drivers, gfci_driver
 from drivers.base_driver import BaseSensorDriver, BaseOutputDriver, GFCIRelay

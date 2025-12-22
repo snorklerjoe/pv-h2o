@@ -4,7 +4,7 @@ from astral import LocationInfo
 from astral.sun import sun
 import datetime
 
-from config import Config
+from app.config import Config
 from app.dynconfig import DynConfig
 
 def get_sun_rise_set_time_today() -> tuple[datetime.datetime, datetime.datetime]:

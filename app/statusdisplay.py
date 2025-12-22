@@ -12,7 +12,7 @@ from .hardware_constants import SensorId, RelayId
 from .regulation import Regulator
 from .watchdog import WatchdogTrigger
 from .dynconfig import DynConfig
-from config import Config
+from app.config import Config
 from loguru import logger
 
 def splash_screen() -> None:
