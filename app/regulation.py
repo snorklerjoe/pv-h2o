@@ -78,7 +78,7 @@ class Regulator:
             # Check temperature
             reading = HardwareState.cur_sensor_values[SensorId.t1]
             if reading is None:
-                self._status_repr = "C1:  Bad/nonexistent sensor reading."
+                self._status_repr1 = "C1:  Bad/nonexistent sensor reading."
                 HardwareState.set_relay(RelayId.circ1, False)
             else:
                 current_temp = reading.cald
@@ -86,16 +86,16 @@ class Regulator:
                 hysteresis = DynConfig.temp_hysteresis
                 
                 if current_temp < (target_temp - hysteresis):
-                    self._status_repr = "C1:  Fell below target-hysteresis => Circuit ON."
+                    self._status_repr1 = "C1:  Fell below target-hysteresis => Circuit ON."
                     HardwareState.set_relay(RelayId.circ1, True)
                 elif current_temp > target_temp:
-                    self._status_repr = "C1:  Above target temp => Circuit OFF."
+                    self._status_repr1 = "C1:  Above target temp => Circuit OFF."
                     HardwareState.set_relay(RelayId.circ1, False)
         else:
-            self._status_repr = "C1:  Disabled => Circuit OFF."
+            self._status_repr1 = "C1:  Disabled => Circuit OFF."
             HardwareState.set_relay(RelayId.circ1, False)
 
-        self._status_repr += "\n"
+        self._status_repr1 += "\n"
 
 
         # Circuit 2 regulation
@@ -103,7 +103,7 @@ class Regulator:
             # Check temperature
             reading = HardwareState.cur_sensor_values[SensorId.t2]
             if reading is None:
-                self._status_repr += "C2:  Bad/nonexistent sensor reading."
+                self._status_repr1 += "C2:  Bad/nonexistent sensor reading."
                 HardwareState.set_relay(RelayId.circ2, False)
             else:
                 current_temp = reading.cald
@@ -111,11 +111,13 @@ class Regulator:
                 hysteresis = DynConfig.temp_hysteresis
                 
                 if current_temp < (target_temp - hysteresis):
-                    self._status_repr += "C2:  Fell below target-hysteresis => Circuit ON."
+                    self._status_repr1 += "C2:  Fell below target-hysteresis => Circuit ON."
                     HardwareState.set_relay(RelayId.circ2, True)
                 elif current_temp > target_temp:
-                    self._status_repr += "C2:  Above target temp => Circuit OFF."
+                    self._status_repr1 += "C2:  Above target temp => Circuit OFF."
                     HardwareState.set_relay(RelayId.circ2, False)
         else:
-            self._status_repr += "C2:  Disabled => Circuit OFF."
+            self._status_repr1 += "C2:  Disabled => Circuit OFF."
             HardwareState.set_relay(RelayId.circ2, False) 
+
+        self._status_repr = self._status_repr1
