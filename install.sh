@@ -43,8 +43,10 @@ function install_package() {
 }
 
 function configure_env() {
+    # Generate SECRET_KEY automatically
+    SECRET_KEY=$(python3 -c "import secrets; print(secrets.token_hex(32))")
+
     # Ask questions
-    SECRET_KEY=$(whiptail --inputbox "Enter SECRET_KEY" 10 60 "$(openssl rand -hex 16)" 3>&1 1>&2 2>&3)
     DATABASE_URL=$(whiptail --inputbox "Enter DATABASE_URL (leave empty for sqlite)" 10 60 "" 3>&1 1>&2 2>&3)
     
     DB_FILE_PATH="$INSTALL_DIR/app.db"
