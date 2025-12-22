@@ -1,8 +1,8 @@
 import os
 from zoneinfo import ZoneInfo
-import git
 
 try:
+    import git
     _this_git_repo = git.Repo(search_parent_directories=True)
     _commit_sha = _this_git_repo.head.object.hexsha
 except Exception:
