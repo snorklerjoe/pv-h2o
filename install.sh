@@ -77,7 +77,7 @@ User=root
 WorkingDirectory=$INSTALL_DIR
 Environment="PATH=$INSTALL_DIR/venv/bin"
 EnvironmentFile=$INSTALL_DIR/.env
-ExecStart=$INSTALL_DIR/venv/bin/gunicorn "app:create_app()" --bind 0.0.0.0:8000 --workers 1 --threads 4
+ExecStart=$INSTALL_DIR/venv/bin/gunicorn "app:create_app()" --bind 0.0.0.0:80 --workers 1 --threads 4
 Restart=always
 
 [Install]
