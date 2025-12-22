@@ -50,17 +50,49 @@
                     const divInput = document.createElement('div');
                     divInput.className = 'col-sm-6';
 
-                    const input = document.createElement('input');
-                    input.type = 'text';
-                    input.className = 'form-control';
-                    input.id = `input-${key}`;
-                    
-                    // Handle array/eval types
-                    let displayValue = item.value;
-                    if (Array.isArray(displayValue) || typeof displayValue === 'object') {
-                        displayValue = JSON.stringify(displayValue);
+                    let input;
+                    let getValue;
+
+                    if (item.value_type === 'boolean') {
+                        const wrapper = document.createElement('div');
+                        wrapper.className = 'form-check form-switch pt-2';
+                        
+                        input = document.createElement('input');
+                        input.className = 'form-check-input';
+                        input.type = 'checkbox';
+                        input.id = `input-${key}`;
+                        input.checked = item.value === true; // Ensure strict boolean check
+                        
+                        wrapper.appendChild(input);
+                        divInput.appendChild(wrapper);
+                        
+                        getValue = () => input.checked;
+                    } else if (item.value_type === 'number') {
+                        input = document.createElement('input');
+                        input.type = 'number';
+                        input.step = 'any';
+                        input.className = 'form-control';
+                        input.id = `input-${key}`;
+                        input.value = item.value;
+                        divInput.appendChild(input);
+                        
+                        getValue = () => parseFloat(input.value);
+                    } else {
+                        input = document.createElement('input');
+                        input.type = 'text';
+                        input.className = 'form-control';
+                        input.id = `input-${key}`;
+                        
+                        // Handle array/eval types
+                        let displayValue = item.value;
+                        if (Array.isArray(displayValue) || typeof displayValue === 'object') {
+                            displayValue = JSON.stringify(displayValue);
+                        }
+                        input.value = displayValue;
+                        divInput.appendChild(input);
+                        
+                        getValue = () => input.value;
                     }
-                    input.value = displayValue;
 
                     const divBtn = document.createElement('div');
                     divBtn.className = 'col-sm-2';
@@ -69,9 +101,8 @@
                     btn.className = 'btn btn-primary w-100';
                     btn.textContent = 'Save';
                     btn.type = 'button';
-                    btn.onclick = () => saveConfig(key, input.value);
+                    btn.onclick = () => saveConfig(key, getValue());
 
-                    divInput.appendChild(input);
                     divBtn.appendChild(btn);
                     
                     formGroup.appendChild(label);

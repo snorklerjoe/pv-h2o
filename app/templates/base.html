@@ -24,7 +24,13 @@
               <a class="nav-link" href="{{ url_for('main.settings') }}">Settings</a>
             </li>
             <li class="nav-item">
-              <a class="nav-link" href="{{ url_for('main.calibration') }}">Calibration</a>
+              <a class="nav-link" href="{{ url_for('main.sensors') }}">Sensor Readings</a>
+            </li>
+            <li class="nav-item">
+              <a class="nav-link" href="{{ url_for('main.grapher') }}">Grapher</a>
+            </li>
+            <li class="nav-item">
+              <a class="nav-link" href="{{ url_for('main.watchdog') }}">Watchdog</a>
             </li>
             <li class="nav-item">
               <a class="nav-link" href="{{ url_for('main.logs') }}">Logs</a>
@@ -44,8 +50,15 @@
               </ul>
             </li>
             {% if current_user.is_authenticated %}
-            <li class="nav-item">
-              <a class="nav-link" href="{{ url_for('main.logout') }}">Logout</a>
+            <li class="nav-item dropdown">
+              <a class="nav-link dropdown-toggle" href="#" id="userDropdown" role="button" data-bs-toggle="dropdown" aria-expanded="false">
+                {{ current_user.name or current_user.username }}
+              </a>
+              <ul class="dropdown-menu dropdown-menu-end" aria-labelledby="userDropdown">
+                <li><a class="dropdown-item" href="{{ url_for('main.profile') }}">Profile</a></li>
+                <li><hr class="dropdown-divider"></li>
+                <li><a class="dropdown-item" href="{{ url_for('main.logout') }}">Logout</a></li>
+              </ul>
             </li>
             {% else %}
             <li class="nav-item">

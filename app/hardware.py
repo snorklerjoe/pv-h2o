@@ -7,6 +7,7 @@ from app.dynconfig import DynConfig, MalformedConfigException
 from app.hardware_constants import SensorId, RelayId
 from loguru import logger
 from typing import Type
+import sys
 
 drivers_initialized = False
 hardware_initialized = False
@@ -39,49 +40,53 @@ def initialize_drivers():
         lcd_driver_conf = DynConfig.driver_lcd
         gfci_driver_conf = DynConfig.driver_gfci
     except MalformedConfigException:  # Malformed config goes through eval()
-        logger.error(f"Malformed driver config. Cannot initialize drivers.")
+        logger.opt(exception=True).error(f"Malformed driver config. Cannot initialize drivers.")
         raise
 
     # Do sensors
     for sensor in SensorId:
         try:
-            DriverClass: Class[BaseSensorDriver] = BaseSensorDriver.get_driver(
-                sensor_driver_conf[sensor][0]
+            DriverClass: Type[BaseSensorDriver] = BaseSensorDriver.get_driver(
+                sensor_driver_conf[sensor.value][0]
             )
-            sensor_drivers[sensor] = DriverClass(sensor_driver_conf[sensor][1])
-        except KeyError:  # We don't have a sensor driver config specified for this sensor
+            sensor_drivers[sensor] = DriverClass(sensor_driver_conf[sensor.value][1])
+        except KeyError as e:  # We don't have a sensor driver config specified for this sensor
             logger.warning(f"No driver found for sensor {sensor.name}... Using dummy driver.")
+            logger.opt(exception=True).debug("(A KeyError exception occurred)")
             sensor_drivers[sensor] = DummySensorDriver({})  # No parameters (use defaults)     
 
     # Do Relays
     for relay in RelayId:
         try:
-            DriverClass: Class[BaseOutputDriver] = BaseOutputDriver.get_driver(
-                output_driver_conf[relay][0]
+            DriverClass: Type[BaseOutputDriver] = BaseOutputDriver.get_driver(
+                output_driver_conf[relay.value][0]
             )
-            relay_drivers[relay] = DriverClass(output_driver_conf[sensor][1])
+            relay_drivers[relay] = DriverClass(output_driver_conf[relay.value][1])
         except KeyError:  # We don't have a sensor driver config specified for this sensor
             logger.warning(f"No driver found for output {relay.name}... Using dummy driver.")
+            logger.opt(exception=True).debug("(A KeyError exception occurred)")
             relay_drivers[relay] = DummyOutputDriver({})  # No parameters (use defaults)     
 
     # Do LCD
     try:
-        DriverClass: Class[BaseLCDDriver] = BaseLCDDriver.get_driver(
+        DriverClass: Type[BaseLCDDriver] = BaseLCDDriver.get_driver(
             lcd_driver_conf[0]
         )
         lcd_driver = DriverClass(lcd_driver_conf[1])
     except KeyError:  # We don't have a sensor driver config specified for this sensor
         logger.warning(f"No driver found for lcd... Using dummy driver.")
+        logger.opt(exception=True).debug("(A KeyError exception occurred)")
         lcd_driver = DummyLCDDriver({})  # No parameters (use defaults)   
 
     # Do GFCI  
     try:
-        DriverClass: Class[BaseGFCIDriver] = BaseGFCIDriver.get_driver(
+        DriverClass: Type[BaseGFCIDriver] = BaseGFCIDriver.get_driver(
             gfci_driver_conf[0]
         )
         gfci_driver = DriverClass(gfci_driver_conf[1])
     except KeyError:  # We don't have a sensor driver config specified for this sensor
         logger.warning(f"No driver found for GFCI... Using dummy driver.")
+        logger.opt(exception=True).debug("(A KeyError exception occurred)")
         gfci_driver = DummyGFCIDriver({})  # No parameters (use defaults)   
 
     drivers_initialized = True

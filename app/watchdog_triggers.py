@@ -1,9 +1,9 @@
 """ Watchdog triggers implementation """
 
-from watchdog import WatchdogTrigger
-from hardwarestate import HardwareState
-from hardware_constants import SensorId, RelayId
-from dynconfig import DynConfig
+from app.watchdog import WatchdogTrigger
+from app.hardwarestate import HardwareState
+from app.hardware_constants import SensorId, RelayId
+from app.dynconfig import DynConfig
 
 class OverCurrentTrigger(WatchdogTrigger):
     @classmethod
@@ -28,11 +28,9 @@ class OverCurrentTrigger(WatchdogTrigger):
 
     @classmethod
     def notify_state(cls) -> str:
-        return f"Over Current Trigger: Limit {DynConfig.trip_current_max_amps}A exceeded."
-
-    @classmethod
-    def clear(cls) -> str:
-        pass
+        if cls.is_tripped:
+            return f"Over Current Trigger: Limit {DynConfig.trip_current_max_amps}A exceeded."
+        return f"Over Current Trigger: Limit {DynConfig.trip_current_max_amps}A met."
 
 class OverTemperatureTrigger(WatchdogTrigger):
     @classmethod
@@ -57,13 +55,11 @@ class OverTemperatureTrigger(WatchdogTrigger):
 
     @classmethod
     def notify_state(cls) -> str:
-        return f"Over Temperature Trigger: Limit {DynConfig.trip_temp_max_f}F exceeded."
+        if cls.is_tripped:
+            return f"Over Temperature Trigger: Limit {DynConfig.trip_temp_max_f}F exceeded."
+        return f"Over Temperature Trigger: Limit {DynConfig.trip_temp_max_f}F met."
 
-    @classmethod
-    def clear(cls) -> str:
-        pass
-
-class ImpedanceMismatchTrigger(WatchdogTrigger):
+class SubnominalResistanceTrigger(WatchdogTrigger):
     @classmethod
     def run_check(cls) -> None:
         min_ohms = DynConfig.trip_impedance_min_ohms
@@ -94,11 +90,9 @@ class ImpedanceMismatchTrigger(WatchdogTrigger):
 
     @classmethod
     def notify_state(cls) -> str:
-        return f"Impedance Mismatch Trigger: Resistance below {DynConfig.trip_impedance_min_ohms} Ohms."
-
-    @classmethod
-    def clear(cls) -> str:
-        pass
+        if cls.is_tripped:
+            return f"Sub-nominal Resistance Trigger: Resistance above {DynConfig.trip_impedance_min_ohms} Ohms."
+        return f"Sub-nominal Resistance Trigger: Resistance below {DynConfig.trip_impedance_min_ohms} Ohms."
 
 class LeakageCurrentTrigger(WatchdogTrigger):
     @classmethod
@@ -106,7 +100,7 @@ class LeakageCurrentTrigger(WatchdogTrigger):
         threshold = DynConfig.trip_leakage_threshold_amps
         
         # Check Circuit 1
-        if not HardwareState.get_relay(RelayId.circ1):
+        if not HardwareState.get_relay_state(RelayId.circ1):
             reading = HardwareState.cur_sensor_values[SensorId.i1]
             if reading:
                 i1 = reading.cald
@@ -115,7 +109,7 @@ class LeakageCurrentTrigger(WatchdogTrigger):
                     HardwareState.set_relay(RelayId.circ1, False)
 
         # Check Circuit 2
-        if not HardwareState.get_relay(RelayId.circ2):
+        if not HardwareState.get_relay_state(RelayId.circ2):
             reading = HardwareState.cur_sensor_values[SensorId.i2]
             if reading:
                 i2 = reading.cald
@@ -125,8 +119,6 @@ class LeakageCurrentTrigger(WatchdogTrigger):
 
     @classmethod
     def notify_state(cls) -> str:
+        if cls.is_tripped:
+            return f"Leakage Current Trigger: Current measurement stays below {DynConfig.trip_leakage_threshold_amps}A while relay OFF."
         return f"Leakage Current Trigger: Current > {DynConfig.trip_leakage_threshold_amps}A detected while relay OFF."
-
-    @classmethod
-    def clear(cls) -> str:
-        pass

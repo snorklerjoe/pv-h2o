@@ -4,7 +4,9 @@
 from app.models import CalibrationPoint
 from functools import cached_property
 from typing import Dict, List, Optional
+import datetime
 from app.hardware_constants import SensorId
+from config import Config
 
 class CalibrationRegistry:
     """
@@ -85,11 +87,20 @@ class SensorReading:
     """
     A raw value and a cal'd value, based on a calibration table
     """
-    def __init__(self, measured_val: float, sensor_id: SensorId):
+    def __init__(self, measured_val: float, sensor_id: SensorId, timestamp: datetime.datetime | None = None):
         self.meas = measured_val
         self.sensor_id = sensor_id
+        if timestamp is None:
+            self.timestamp = datetime.datetime.now(Config.TIMEZONE)
+        else:
+            self.timestamp = timestamp
 
     @cached_property
     def cald(self) -> float:
         """ The calibrated value """
         return CalTable(self.sensor_id).apply_cal(self.meas)
+    
+    @cached_property
+    def raw(self) -> float:
+        """ The raw value """
+        return self.meas

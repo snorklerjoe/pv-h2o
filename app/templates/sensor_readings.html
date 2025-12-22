@@ -1,10 +1,19 @@
 {% extends "base.html" %}
 
 {% block content %}
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
 <div class="row">
     <div class="col-md-12">
-        <h1>Sensor Calibration</h1>
-        <p class="text-muted">Add calibration points to correct sensor readings. The system interpolates between points.</p>
+        <div class="d-flex justify-content-between align-items-center mb-3">
+            <h1>Sensor Readings</h1>
+            <select id="timescale-select" class="form-select w-auto" onchange="updateCharts()">
+                <option value="5">Last 5 Minutes</option>
+                <option value="10">Last 10 Minutes</option>
+                <option value="60">Last Hour</option>
+                <option value="1440" selected>Last 24 Hours</option>
+            </select>
+        </div>
+        <p class="text-muted">Monitor sensor readings and manage calibration.</p>
         
         <div id="calibration-container">
             <div class="text-center">
@@ -56,6 +65,52 @@
     
     let addModal;
     let currentValues = {};
+    let charts = {};
+
+    function updateCharts() {
+        const minutes = document.getElementById('timescale-select').value;
+        const end = new Date();
+        const start = new Date(end.getTime() - minutes * 60000);
+        
+        fetch(`/api/history?start=${start.toISOString()}&end=${end.toISOString()}`)
+            .then(response => response.json())
+            .then(data => {
+                const timestamps = data.timestamps.map(t => new Date(t).toLocaleTimeString());
+                
+                for (const [sensor, values] of Object.entries(data.sensors)) {
+                    const ctx = document.getElementById(`chart-${sensor}`);
+                    if (!ctx) continue;
+                    
+                    if (charts[sensor]) {
+                        charts[sensor].data.labels = timestamps;
+                        charts[sensor].data.datasets[0].data = values;
+                        charts[sensor].update();
+                    } else {
+                        charts[sensor] = new Chart(ctx, {
+                            type: 'line',
+                            data: {
+                                labels: timestamps,
+                                datasets: [{
+                                    label: sensor,
+                                    data: values,
+                                    borderColor: 'rgb(75, 192, 192)',
+                                    tension: 0.1,
+                                    pointRadius: 0
+                                }]
+                            },
+                            options: {
+                                responsive: true,
+                                maintainAspectRatio: false,
+                                animation: false,
+                                scales: {
+                                    x: { display: false }
+                                }
+                            }
+                        });
+                    }
+                }
+            });
+    }
 
     function updateStatus() {
         fetch('/api/status')
@@ -65,8 +120,16 @@
                 for (const [sensor, val] of Object.entries(data.sensors)) {
                     const rawEl = document.getElementById(`raw-${sensor}`);
                     const calEl = document.getElementById(`cal-${sensor}`);
-                    if (rawEl) rawEl.textContent = val.raw.toFixed(2);
-                    if (calEl) calEl.textContent = val.calibrated.toFixed(2);
+                    const timeEl = document.getElementById(`time-${sensor}`);
+                    
+                    if (val) {
+                        if (rawEl) rawEl.textContent = val.raw.toFixed(2);
+                        if (calEl) calEl.textContent = val.calibrated.toFixed(2);
+                        if (timeEl && val.timestamp) {
+                            const date = new Date(val.timestamp);
+                            timeEl.textContent = date.toLocaleTimeString();
+                        }
+                    }
                 }
             })
             .catch(err => console.error('Error fetching status:', err));
@@ -83,14 +146,16 @@
                 const sensors = Object.keys(data).sort();
 
                 sensors.forEach(sensor => {
-                    const points = data[sensor];
+                    const sensorData = data[sensor];
+                    const points = sensorData.points;
                     const card = document.createElement('div');
                     card.className = 'card mb-4';
                     
                     const header = document.createElement('div');
                     header.className = 'card-header d-flex justify-content-between align-items-center';
-                    header.innerHTML = `<h5 class="mb-0">${sensor}</h5>
+                    header.innerHTML = `<h5 class="mb-0">${sensorData.readable_name} <small class="text-muted" style="font-size: 0.8em;">(${sensor})</small></h5>
                         <div>
+                            <span class="badge bg-info text-dark me-2" id="time-${sensor}">--:--:--</span>
                             <span class="badge bg-secondary me-2">Raw: <span id="raw-${sensor}">--</span></span>
                             <span class="badge bg-success me-2">Cal: <span id="cal-${sensor}">--</span></span>
                             <button class="btn btn-sm btn-primary" onclick="openAddModal('${sensor}')">Add Point</button>
@@ -99,8 +164,18 @@
                     const body = document.createElement('div');
                     body.className = 'card-body';
                     
+                    // Add Chart Container
+                    const chartContainer = document.createElement('div');
+                    chartContainer.style.height = '200px';
+                    chartContainer.className = 'mb-3';
+                    chartContainer.innerHTML = `<canvas id="chart-${sensor}"></canvas>`;
+                    body.appendChild(chartContainer);
+                    
                     if (points.length === 0) {
-                        body.innerHTML = '<p class="text-muted">No calibration points. Using raw values.</p>';
+                        const p = document.createElement('p');
+                        p.className = 'text-muted';
+                        p.textContent = 'No calibration points. Using raw values.';
+                        body.appendChild(p);
                     } else {
                         const table = document.createElement('table');
                         table.className = 'table table-striped';
@@ -126,6 +201,8 @@
                 
                 // Trigger an immediate status update to fill values
                 updateStatus();
+                updateCharts();
+                setInterval(updateCharts, 30000); // Update charts every 30s
             })
             .catch(err => console.error('Error loading calibration:', err));
     }

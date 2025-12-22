@@ -4,6 +4,12 @@
 <div class="row mb-4">
     <div class="col-md-12">
         <h1>Dashboard</h1>
+        <div id="watchdog-alert" class="alert alert-danger d-none" role="alert">
+            <h4 class="alert-heading">SYSTEM FAULT!</h4>
+            <p>A watchdog trigger has tripped. The system may be in a safe state.</p>
+            <hr>
+            <a href="{{ url_for('main.watchdog') }}" class="btn btn-danger">View Watchdog Status</a>
+        </div>
         <div id="status-indicator" class="badge bg-secondary">Loading Status...</div>
         <div id="day-night-indicator" class="badge bg-info">Checking Day/Night...</div>
     </div>
@@ -35,6 +41,9 @@
                     <div class="col-6">
                         <strong>Current:</strong> <span id="val-i1">--</span> A
                     </div>
+                    <div class="col-md-4">
+                        <strong>Voltage 1 (V1):</strong> <span id="val-v1">--</span> V
+                    </div>
                 </div>
             </div>
         </div>
@@ -65,6 +74,9 @@
                     <div class="col-6">
                         <strong>Current:</strong> <span id="val-i2">--</span> A
                     </div>
+                    <div class="col-md-4">
+                        <strong>Voltage 2 (V2):</strong> <span id="val-v2">--</span> V
+                    </div>
                 </div>
             </div>
         </div>
@@ -78,13 +90,7 @@
             <div class="card-body">
                 <div class="row">
                     <div class="col-md-4">
-                        <strong>Ambient Temp (T0):</strong> <span id="val-t0">--</span> &deg;F
-                    </div>
-                    <div class="col-md-4">
-                        <strong>Voltage 1 (V1):</strong> <span id="val-v1">--</span> V
-                    </div>
-                    <div class="col-md-4">
-                        <strong>Voltage 2 (V2):</strong> <span id="val-v2">--</span> V
+                        <strong>Incoming Water Temp (T0):</strong> <span id="val-t0">--</span> &deg;F
                     </div>
                 </div>
             </div>
@@ -117,6 +123,14 @@
                 } else {
                     st.textContent = "Automatic Regulation";
                     st.className = "badge bg-success";
+                }
+
+                // Update Watchdog Alert
+                const wdAlert = document.getElementById('watchdog-alert');
+                if (data.watchdog_tripped) {
+                    wdAlert.classList.remove('d-none');
+                } else {
+                    wdAlert.classList.add('d-none');
                 }
 
                 // Update Sensors

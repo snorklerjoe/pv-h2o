@@ -1,0 +1,209 @@
+{% extends "base.html" %}
+
+{% block content %}
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+<div class="row">
+    <div class="col-md-12">
+        <h1>Grapher</h1>
+        <p class="text-muted">Visualize historical sensor data.</p>
+        
+        <div class="card mb-4">
+            <div class="card-body">
+                <form id="graph-form" class="row g-3 align-items-end">
+                    <div class="col-md-3">
+                        <label for="start-time" class="form-label">Start Time</label>
+                        <input type="datetime-local" class="form-control" id="start-time" required>
+                    </div>
+                    <div class="col-md-3">
+                        <label for="end-time" class="form-label">End Time</label>
+                        <input type="datetime-local" class="form-control" id="end-time" required>
+                    </div>
+                    <div class="col-md-4">
+                        <label class="form-label">Sensors</label>
+                        <div class="dropdown">
+                            <button class="btn btn-outline-secondary dropdown-toggle w-100" type="button" id="sensorDropdown" data-bs-toggle="dropdown" aria-expanded="false">
+                                Select Sensors
+                            </button>
+                            <ul class="dropdown-menu w-100" aria-labelledby="sensorDropdown" id="sensor-list">
+                                <!-- Populated by JS -->
+                            </ul>
+                        </div>
+                    </div>
+                    <div class="col-md-2">
+                        <button type="submit" class="btn btn-primary w-100">Graph</button>
+                    </div>
+                </form>
+            </div>
+        </div>
+
+        <div class="card">
+            <div class="card-body">
+                <div style="height: 500px;">
+                    <canvas id="main-chart"></canvas>
+                </div>
+                <div class="mt-3 text-end">
+                    <button class="btn btn-success" onclick="exportCSV()">Export CSV</button>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+    let mainChart;
+    let availableSensors = [];
+
+    document.addEventListener('DOMContentLoaded', () => {
+        // Set default times (last 24h)
+        const now = new Date();
+        const yesterday = new Date(now.getTime() - 24 * 60 * 60 * 1000);
+        
+        // Format for datetime-local input (YYYY-MM-DDTHH:mm)
+        const formatDT = (d) => {
+            const pad = (n) => n < 10 ? '0' + n : n;
+            return `${d.getFullYear()}-${pad(d.getMonth()+1)}-${pad(d.getDate())}T${pad(d.getHours())}:${pad(d.getMinutes())}`;
+        };
+        
+        document.getElementById('end-time').value = formatDT(now);
+        document.getElementById('start-time').value = formatDT(yesterday);
+
+        // Load sensors
+        fetch('/api/status')
+            .then(response => response.json())
+            .then(data => {
+                availableSensors = Object.keys(data.sensors).sort();
+                const list = document.getElementById('sensor-list');
+                availableSensors.forEach(s => {
+                    const li = document.createElement('li');
+                    li.innerHTML = `
+                        <div class="dropdown-item">
+                            <div class="form-check">
+                                <input class="form-check-input sensor-check" type="checkbox" value="${s}" id="check-${s}" checked>
+                                <label class="form-check-label" for="check-${s}">
+                                    ${s}
+                                </label>
+                            </div>
+                        </div>
+                    `;
+                    list.appendChild(li);
+                });
+                
+                // Initial graph
+                updateGraph();
+            });
+
+        document.getElementById('graph-form').addEventListener('submit', (e) => {
+            e.preventDefault();
+            updateGraph();
+        });
+    });
+
+    function updateGraph() {
+        const start = new Date(document.getElementById('start-time').value).toISOString();
+        const end = new Date(document.getElementById('end-time').value).toISOString();
+        
+        const selectedSensors = Array.from(document.querySelectorAll('.sensor-check:checked')).map(cb => cb.value);
+        
+        if (selectedSensors.length === 0) {
+            alert("Please select at least one sensor.");
+            return;
+        }
+
+        fetch(`/api/history?start=${start}&end=${end}&sensors=${selectedSensors.join(',')}`)
+            .then(response => response.json())
+            .then(data => {
+                const ctx = document.getElementById('main-chart');
+                const timestamps = data.timestamps.map(t => new Date(t).toLocaleString());
+                
+                const datasets = Object.entries(data.sensors).map(([sensor, values], index) => {
+                    const colors = [
+                        'rgb(255, 99, 132)', 'rgb(54, 162, 235)', 'rgb(255, 206, 86)', 
+                        'rgb(75, 192, 192)', 'rgb(153, 102, 255)', 'rgb(255, 159, 64)',
+                        'rgb(199, 199, 199)'
+                    ];
+                    return {
+                        label: sensor,
+                        data: values,
+                        borderColor: colors[index % colors.length],
+                        tension: 0.1,
+                        pointRadius: 0,
+                        borderWidth: 2
+                    };
+                });
+
+                if (mainChart) {
+                    mainChart.destroy();
+                }
+
+                mainChart = new Chart(ctx, {
+                    type: 'line',
+                    data: {
+                        labels: timestamps,
+                        datasets: datasets
+                    },
+                    options: {
+                        responsive: true,
+                        maintainAspectRatio: false,
+                        interaction: {
+                            mode: 'index',
+                            intersect: false,
+                        },
+                        plugins: {
+                            legend: {
+                                position: 'top',
+                            },
+                            title: {
+                                display: true,
+                                text: 'Sensor History'
+                            }
+                        },
+                        scales: {
+                            x: {
+                                ticks: {
+                                    maxTicksLimit: 10
+                                }
+                            }
+                        }
+                    }
+                });
+            });
+    }
+
+    function exportCSV() {
+        const start = new Date(document.getElementById('start-time').value).toISOString();
+        const end = new Date(document.getElementById('end-time').value).toISOString();
+        const selectedSensors = Array.from(document.querySelectorAll('.sensor-check:checked')).map(cb => cb.value);
+        
+        if (selectedSensors.length === 0) {
+            alert("Please select at least one sensor.");
+            return;
+        }
+
+        fetch(`/api/history?start=${start}&end=${end}&sensors=${selectedSensors.join(',')}`)
+            .then(response => response.json())
+            .then(data => {
+                let csvContent = "data:text/csv;charset=utf-8,";
+                
+                // Header
+                csvContent += "Timestamp," + Object.keys(data.sensors).join(",") + "\r\n";
+                
+                // Rows
+                data.timestamps.forEach((ts, index) => {
+                    let row = ts;
+                    Object.values(data.sensors).forEach(values => {
+                        row += "," + (values[index] !== null ? values[index] : "");
+                    });
+                    csvContent += row + "\r\n";
+                });
+                
+                const encodedUri = encodeURI(csvContent);
+                const link = document.createElement("a");
+                link.setAttribute("href", encodedUri);
+                link.setAttribute("download", "sensor_data.csv");
+                document.body.appendChild(link);
+                link.click();
+                document.body.removeChild(link);
+            });
+    }
+</script>
+{% endblock %}

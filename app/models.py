@@ -8,6 +8,7 @@ from config import Config
 class User(UserMixin, db.Model):
     id = db.Column(db.Integer, primary_key=True)
     username = db.Column(db.String(64), index=True, unique=True)
+    name = db.Column(db.String(64))
     password_hash = db.Column(db.String(128))
 
     def set_password(self, password):

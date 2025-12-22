@@ -1,0 +1,110 @@
+{% extends "base.html" %}
+
+{% block content %}
+<div class="row">
+    <div class="col-md-12">
+        <h1>Watchdog Status</h1>
+        <div class="alert alert-info">
+            The watchdog system monitors critical parameters and trips if safety limits are exceeded.
+        </div>
+        
+        <div class="mb-3">
+            <button class="btn btn-warning" onclick="clearAllWatchdogs()">Master Clear All Faults</button>
+        </div>
+
+        <div id="watchdog-container">
+            <div class="text-center">
+                <div class="spinner-border text-primary" role="status">
+                    <span class="visually-hidden">Loading...</span>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+    document.addEventListener('DOMContentLoaded', loadWatchdogs);
+    setInterval(loadWatchdogs, 2000);
+
+    function loadWatchdogs() {
+        fetch('/api/watchdog')
+            .then(response => response.json())
+            .then(data => {
+                const container = document.getElementById('watchdog-container');
+                container.innerHTML = '';
+
+                if (data.tripped) {
+                    const alert = document.createElement('div');
+                    alert.className = 'alert alert-danger';
+                    alert.innerHTML = '<strong>SYSTEM TRIPPED!</strong> One or more watchdog triggers are active.';
+                    container.appendChild(alert);
+                } else {
+                    const alert = document.createElement('div');
+                    alert.className = 'alert alert-success';
+                    alert.innerHTML = '<strong>System Normal.</strong> No active faults.';
+                    container.appendChild(alert);
+                }
+
+                const list = document.createElement('div');
+                list.className = 'list-group';
+
+                data.triggers.forEach(trigger => {
+                    const item = document.createElement('div');
+                    item.className = 'list-group-item list-group-item-action';
+                    
+                    const header = document.createElement('div');
+                    header.className = 'd-flex w-100 justify-content-between align-items-center';
+                    header.innerHTML = `<h5 class="mb-1">${trigger.name}</h5>`;
+                    
+                    const body = document.createElement('p');
+                    body.className = 'mb-1';
+                    body.textContent = trigger.status;
+                    
+                    const actions = document.createElement('div');
+                    actions.className = 'mt-2';
+                    actions.innerHTML = `
+                        <button class="btn btn-sm btn-outline-danger me-2" onclick="testTrigger('${trigger.name}')">Test Trigger</button>
+                        <button class="btn btn-sm btn-outline-success" onclick="clearTrigger('${trigger.name}')">Clear Fault</button>
+                    `;
+                    
+                    item.appendChild(header);
+                    item.appendChild(body);
+                    item.appendChild(actions);
+                    list.appendChild(item);
+                });
+                
+                container.appendChild(list);
+            })
+            .catch(err => console.error('Error loading watchdog status:', err));
+    }
+
+    function clearAllWatchdogs() {
+        if (!confirm('Are you sure you want to clear ALL watchdog faults?')) return;
+        fetch('/api/watchdog/clear', { method: 'POST' })
+            .then(response => response.json())
+            .then(data => {
+                if (data.success) loadWatchdogs();
+                else alert('Failed to clear watchdogs');
+            });
+    }
+
+    function testTrigger(name) {
+        if (!confirm(`Simulate trigger for ${name}? This will trip the system.`)) return;
+        fetch(`/api/watchdog/trigger/${name}`, { method: 'POST' })
+            .then(response => response.json())
+            .then(data => {
+                if (data.success) loadWatchdogs();
+                else alert('Failed to trigger watchdog');
+            });
+    }
+
+    function clearTrigger(name) {
+        fetch(`/api/watchdog/clear/${name}`, { method: 'POST' })
+            .then(response => response.json())
+            .then(data => {
+                if (data.success) loadWatchdogs();
+                else alert('Failed to clear watchdog');
+            });
+    }
+</script>
+{% endblock %}

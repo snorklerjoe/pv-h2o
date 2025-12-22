@@ -13,6 +13,8 @@ from .dynconfig import DynConfig
 from .hardware_constants import SensorId, RelayId
 from threading import Thread
 from time import sleep
+from app import db
+from app.models import Measurement
 
 
 class HardwareState:
@@ -47,7 +49,7 @@ class HardwareState:
             new_sensor_values = {}
             for sensor_id in HardwareState.cur_sensor_values.keys():
                 driver: BaseSensorDriver = sensor_drivers[sensor_id]
-                new_sensor_values[sensor_id] = driver.read()
+                new_sensor_values[sensor_id] = SensorReading(driver.read(), sensor_id)
 
             # Update the "current" latest values all at once (reference updates are atomic)
             HardwareState.cur_sensor_values = new_sensor_values
@@ -55,8 +57,40 @@ class HardwareState:
             # Update last polled time
             HardwareState.last_polled = datetime.now(Config.TIMEZONE)
 
+            # Save to database
+            try:
+                m = Measurement(
+                    timestamp=HardwareState.last_polled,
+                    # Raw
+                    v1_raw=new_sensor_values[SensorId.v1].raw if new_sensor_values[SensorId.v1] else None,
+                    i1_raw=new_sensor_values[SensorId.i1].raw if new_sensor_values[SensorId.i1] else None,
+                    t1_raw=new_sensor_values[SensorId.t1].raw if new_sensor_values[SensorId.t1] else None,
+                    v2_raw=new_sensor_values[SensorId.v2].raw if new_sensor_values[SensorId.v2] else None,
+                    i2_raw=new_sensor_values[SensorId.i2].raw if new_sensor_values[SensorId.i2] else None,
+                    t2_raw=new_sensor_values[SensorId.t2].raw if new_sensor_values[SensorId.t2] else None,
+                    t0_raw=new_sensor_values[SensorId.t0].raw if new_sensor_values[SensorId.t0] else None,
+                    # Calibrated
+                    v1_cal=new_sensor_values[SensorId.v1].cald if new_sensor_values[SensorId.v1] else None,
+                    i1_cal=new_sensor_values[SensorId.i1].cald if new_sensor_values[SensorId.i1] else None,
+                    t1_cal=new_sensor_values[SensorId.t1].cald if new_sensor_values[SensorId.t1] else None,
+                    v2_cal=new_sensor_values[SensorId.v2].cald if new_sensor_values[SensorId.v2] else None,
+                    i2_cal=new_sensor_values[SensorId.i2].cald if new_sensor_values[SensorId.i2] else None,
+                    t2_cal=new_sensor_values[SensorId.t2].cald if new_sensor_values[SensorId.t2] else None,
+                    t0_cal=new_sensor_values[SensorId.t0].cald if new_sensor_values[SensorId.t0] else None,
+                    # Relays
+                    relay_inside_1=HardwareState.get_relay_state(RelayId.circ1),
+                    relay_inside_2=HardwareState.get_relay_state(RelayId.circ2),
+                    relay_outside_1=HardwareState.get_relay_state(RelayId.gfci1),
+                    relay_outside_2=HardwareState.get_relay_state(RelayId.gfci2)
+                )
+                db.session.add(m)
+                db.session.commit()
+            except Exception as e:
+                logger.error(f"Error saving measurement to DB: {e}")
+                db.session.rollback()
+
     @staticmethod
-    def start_sensorpolling():
+    def start_sensorpolling(flask_app):
         """ Starts a thread to continuously poll the sensor data at a rate defined in dynconf """
         with HardwareState._instancelock:
             if HardwareState._pollingthread is not None and HardwareState._pollingthread.is_alive():
@@ -64,7 +98,8 @@ class HardwareState:
 
             def continuouspoll():
                 while HardwareState._running:
-                    HardwareState.poll_sensors()
+                    with flask_app.app_context():
+                        HardwareState.poll_sensors()
                     sleep(DynConfig.polling_rate_seconds)
             HardwareState._pollingthread = Thread(target=continuouspoll, name="Sensor polling", daemon=True)
             HardwareState._pollingthread.start()

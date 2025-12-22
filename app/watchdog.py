@@ -16,13 +16,13 @@ class WatchdogTrigger(ABC):
         WatchdogTrigger._all_triggers.append(cls)
         return super().__init_subclass__()
 
-    @staticmethod
-    @property
-    def all_triggers():
+    @classmethod
+    def all_triggers(cls):
         return WatchdogTrigger._all_triggers
     
     @classmethod
     def trigger_alarm_state(cls):
+        cls._alarm_state = True
         WatchdogTrigger._alarm_state = True
         WatchdogTrigger._triggered_check = cls
 
@@ -36,18 +36,17 @@ class WatchdogTrigger(ABC):
     @staticmethod
     def gen_notify_repr():
         notify_str: str = ""
-        if WatchdogTrigger.is_tripped:
+        if WatchdogTrigger.is_tripped():
             notify_str = f"{WatchdogTrigger._triggered_check.notify_state()}\n\n"
         notify_str += "Summary of watchdog checks:\n"
-        for check in WatchdogTrigger.all_triggers:
+        for check in WatchdogTrigger.all_triggers():
             notify_str += "  - " + check.notify_state() + "\n"
         return notify_str
 
 
-    @staticmethod
-    @property
-    def is_tripped():
-        return WatchdogTrigger._alarm_state
+    @classmethod
+    def is_tripped(cls):
+        return cls._alarm_state
 
     @classmethod
     def check_all(cls):
@@ -68,8 +67,7 @@ class WatchdogTrigger(ABC):
         pass
 
     @classmethod
-    @abstractmethod
     def clear(cls) -> None:
         """ Clear any state associated with this trigger """
-        pass
+        cls._alarm_state = False
 

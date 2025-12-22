@@ -43,13 +43,65 @@ def logout():
 def settings():
     return render_template('settings.html', title='Settings')
 
-@bp.route('/calibration')
+@bp.route('/sensors')
 @login_required
-def calibration():
-    return render_template('calibration.html', title='Calibration')
+def sensors():
+    return render_template('sensor_readings.html', title='Sensor Readings')
+
+@bp.route('/grapher')
+@login_required
+def grapher():
+    return render_template('grapher.html', title='Grapher')
 
 @bp.route('/logs')
 @login_required
 def logs():
     return render_template('logs.html', title='System Logs')
+
+@bp.route('/watchdog')
+@login_required
+def watchdog():
+    return render_template('watchdog.html', title='Watchdog Status')
+
+@bp.route('/profile', methods=['GET', 'POST'])
+@login_required
+def profile():
+    if request.method == 'POST':
+        username = request.form.get('username')
+        name = request.form.get('name')
+        password = request.form.get('password')
+        
+        if username:
+            current_user.username = username
+        if name:
+            current_user.name = name
+        if password:
+            current_user.set_password(password)
+            
+        db.session.commit()
+        flash('Profile updated successfully')
+        return redirect(url_for('main.profile'))
+        
+    return render_template('profile.html', title='User Profile')
+
+@bp.route('/users/create', methods=['GET', 'POST'])
+@login_required
+def create_user():
+    if request.method == 'POST':
+        username = request.form.get('username')
+        name = request.form.get('name')
+        password = request.form.get('password')
+        
+        if User.query.filter_by(username=username).first():
+            flash('Username already exists')
+        else:
+            user = User(username=username, name=name)
+            user.set_password(password)
+            db.session.add(user)
+            db.session.commit()
+            flash('User created successfully')
+            return redirect(url_for('main.index'))
+            
+    return render_template('create_user.html', title='Create User')
+
 

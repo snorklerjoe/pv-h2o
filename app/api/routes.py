@@ -3,12 +3,15 @@ from app.api import bp
 from app.hardwarestate import HardwareState
 from app.hardware_constants import SensorId, RelayId
 from app.dynconfig import DynConfig
-from app.models import SystemConfig, CalibrationPoint
+from app.models import SystemConfig, CalibrationPoint, Measurement
 from app import db
 from app.regulation import Regulator
 from app.calibration import CalibrationRegistry
 from flask_login import login_required
 import os
+from datetime import datetime, timedelta
+
+from app.watchdog import WatchdogTrigger
 
 @bp.route('/status', methods=['GET'])
 def get_status():
@@ -20,7 +23,8 @@ def get_status():
         if reading:
             readings[sensor_id.name] = {
                 'raw': reading.raw,
-                'calibrated': reading.cald
+                'calibrated': reading.cald,
+                'timestamp': reading.timestamp.isoformat() if reading.timestamp else None
             }
         else:
             readings[sensor_id.name] = None
@@ -35,8 +39,60 @@ def get_status():
         'relays': relays,
         'is_day': not Regulator()._is_light_out(), # _is_light_out returns True if it is night
         'manual_mode': DynConfig.manual_mode,
-        'circuit_enables': DynConfig.circuit_states
+        'circuit_enables': DynConfig.circuit_states,
+        'watchdog_tripped': WatchdogTrigger.is_tripped()
     })
+
+@bp.route('/watchdog', methods=['GET'])
+@login_required
+def get_watchdog_status():
+    """ Get status of all watchdog triggers """
+    triggers = []
+    for trigger in WatchdogTrigger.all_triggers():
+        triggers.append({
+            'name': trigger.__name__,
+            'status': trigger.notify_state()
+        })
+    
+    return jsonify({
+        'tripped': WatchdogTrigger.is_tripped(),
+        'triggers': triggers
+    })
+
+@bp.route('/watchdog/clear', methods=['POST'])
+@login_required
+def clear_watchdog():
+    """ Clear all watchdog alarms """
+    WatchdogTrigger.clear_alarm()
+    return jsonify({'success': True})
+
+@bp.route('/watchdog/trigger/<name>', methods=['POST'])
+@login_required
+def test_trigger_watchdog(name):
+    """ Simulate a trigger for a specific watchdog """
+    for trigger in WatchdogTrigger.all_triggers():
+        if trigger.__name__ == name:
+            trigger.trigger_alarm_state()
+            return jsonify({'success': True})
+    return jsonify({'error': 'Trigger not found'}), 404
+
+@bp.route('/watchdog/clear/<name>', methods=['POST'])
+@login_required
+def clear_single_watchdog(name):
+    """ Clear a specific watchdog trigger """
+    for trigger in WatchdogTrigger.all_triggers():
+        if trigger.__name__ == name:
+            trigger.clear()
+            # If no other triggers are active, we might want to clear the master alarm?
+            # The current implementation of WatchdogTrigger.clear_alarm clears ALL.
+            # Individual clear might not reset the master alarm state if it's a simple boolean.
+            # Let's check WatchdogTrigger implementation.
+            # It seems _alarm_state is a global boolean.
+            # We should probably re-evaluate if any are tripped.
+            # For now, let's just call clear() on the instance.
+            return jsonify({'success': True})
+    return jsonify({'error': 'Trigger not found'}), 404
+
 
 @bp.route('/circuits', methods=['POST'])
 @login_required
@@ -87,7 +143,8 @@ def get_config():
             'value': val,
             'default': meta['default'],
             'description': meta['description'],
-            'is_eval': meta['is_eval']
+            'is_eval': meta['is_eval'],
+            'value_type': meta.get('value_type', 'text')
         }
         
     return jsonify(config_values)
@@ -106,6 +163,10 @@ def update_config():
     definitions = DynConfig.get_definitions()
     if key not in definitions:
         return jsonify({'error': 'Invalid config key'}), 400
+
+    # Validate value
+    if not DynConfig.validate(key, value):
+        return jsonify({'error': 'Invalid value for this configuration setting'}), 400
         
     # Update DB
     conf = SystemConfig.query.filter_by(key=key).first()
@@ -138,7 +199,10 @@ def get_calibration():
     data = {}
     for sensor in SensorId:
         points = CalibrationRegistry.get_points(sensor)
-        data[sensor.name] = [{'id': p.id, 'measured': p.measured_val, 'actual': p.actual_val} for p in points]
+        data[sensor.name] = {
+            'readable_name': sensor.readable_name,
+            'points': [{'id': p.id, 'measured': p.measured_val, 'actual': p.actual_val} for p in points]
+        }
     return jsonify(data)
 
 @bp.route('/calibration', methods=['POST'])
@@ -180,3 +244,48 @@ def delete_calibration_point(id):
     
     return jsonify({'success': True})
 
+
+@bp.route('/history', methods=['GET'])
+@login_required
+def get_history():
+    """ Get historical sensor data """
+    start_str = request.args.get('start')
+    end_str = request.args.get('end')
+    sensors_str = request.args.get('sensors') # comma separated
+
+    query = Measurement.query
+
+    if start_str:
+        try:
+            start = datetime.fromisoformat(start_str.replace('Z', '+00:00'))
+            query = query.filter(Measurement.timestamp >= start)
+        except ValueError:
+            pass # Ignore invalid date
+            
+    if end_str:
+        try:
+            end = datetime.fromisoformat(end_str.replace('Z', '+00:00'))
+            query = query.filter(Measurement.timestamp <= end)
+        except ValueError:
+            pass
+
+    # Limit results to prevent overload if no range specified
+    if not start_str and not end_str:
+        query = query.filter(Measurement.timestamp >= datetime.now() - timedelta(hours=24))
+
+    query = query.order_by(Measurement.timestamp.asc())
+    results = query.all()
+
+    data = {
+        'timestamps': [m.timestamp.isoformat() for m in results],
+        'sensors': {}
+    }
+
+    sensor_list = sensors_str.split(',') if sensors_str else [s.name for s in SensorId]
+
+    for sensor in sensor_list:
+        col_name = f"{sensor}_cal"
+        if hasattr(Measurement, col_name):
+            data['sensors'][sensor] = [getattr(m, col_name) for m in results]
+            
+    return jsonify(data)

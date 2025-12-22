@@ -49,7 +49,7 @@ def shutdown_handler(signum, frame):
         logger.error(f"Error de-initializing hardware: {e}")
     sys.exit(0)
 
-def initialize_backend():
+def initialize_backend(flask_app):
     # Register signal handlers
     signal.signal(signal.SIGINT, shutdown_handler)
     signal.signal(signal.SIGTERM, shutdown_handler)
@@ -105,12 +105,13 @@ def initialize_backend():
 
     # Set up the watchdog timer
     from .watchdog import WatchdogTrigger
+    import app.watchdog_triggers # Register triggers
     @scheduler.task('interval', id='watchdog', seconds=Config.WATCDOG_PERIOD_SEC, misfire_grace_time=3*Config.WATCDOG_PERIOD_SEC)
     def watchdog():
-        was_not_tripped: bool = not WatchdogTrigger.is_tripped
-        for check in list(WatchdogTrigger.all_triggers):
+        was_not_tripped: bool = not WatchdogTrigger.is_tripped()
+        for check in list(WatchdogTrigger.all_triggers()):
             check.run_check()
-        if was_not_tripped and WatchdogTrigger.is_tripped and DynConfig.notify_email_enabled():  # Send a notification if something just happened
+        if was_not_tripped and WatchdogTrigger.is_tripped() and DynConfig.notify_email_enabled():  # Send a notification if something just happened
             notifier.send_alert(
                 "Solar Watchdog Tripped",
                 WatchdogTrigger.gen_notify_repr()
@@ -126,7 +127,7 @@ def initialize_backend():
 
     # Get the sensor polling loop going
     from .hardwarestate import HardwareState
-    HardwareState.start_sensorpolling()
+    HardwareState.start_sensorpolling(flask_app)
 
     # Get the regulation loop going
     from .regulation import Regulator
@@ -163,7 +164,7 @@ def create_app(config_class=Config):
             import os
             if os.environ.get("WERKZEUG_RUN_MAIN") == "true" or not app.debug:
                 logger.info("Performing backend initialization...")
-                initialize_backend()
+                initialize_backend(app)
                 _backend_initialized = True
             else:
                 logger.info("Skipping backend init (Main process of debug reloader)")

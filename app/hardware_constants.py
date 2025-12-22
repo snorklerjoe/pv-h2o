@@ -17,6 +17,20 @@ class SensorId(Enum):
     i2 = "i2"  # Current
     t2 = "t2"  # Temperature
 
+    @property
+    def readable_name(self):
+        names = {
+            "t0": "Ambient Water Temp",
+            "v1": "Voltage (circuit 1)",
+            "i1": "Current (circuit 1)",
+            "t1": "Tank 1 Temp",
+            "v2": "Voltage (circuit 2)",
+            "i2": "Current (circuit 2)",
+            "t2": "Tank 2 Temp"
+        }
+        return names.get(self.value, self.value)
+
+
 @unique
 class RelayId(Enum):
     """ Uniquely identifies each relay in the system """
