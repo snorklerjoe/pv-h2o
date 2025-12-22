@@ -18,6 +18,7 @@ class ConfigCategory(Enum):
     NOTIFICATIONS = "Notifications"
     DRIVERS = "Hardware Drivers"
     SYSTEM = "System"
+    MISC = "Miscellaneous"
 
 # Global definitions storage to avoid circular reference during class creation
 _definitions = {}
@@ -183,7 +184,10 @@ class DynConfig:
     notify_to_emails = conf_property("notify_to_emails", "john@example.com,bob@example.com", "Comma-separated list of notification emails", ConfigCategory.NOTIFICATIONS, lambda x: True, "text")
 
     # Drivers for things
-    driver_sensors = conf_property_evald("driver_sensors", "{" + ', '.join([f"\"{key.value}\":(\"dummy\", {{ 'value': 2.0, 'noise': 1.0 }})" for key in SensorId]) + "}", "Sensor Driver Configuration", ConfigCategory.DRIVERS, lambda x: isinstance(x, dict), "json")
+    driver_sensors = conf_property_evald("driver_sensors", "{" + ', '.join([f"\"{key.value}\":(\"dummy\", {{ 'value': 2.0, 'noise': 1.0 }})" for key in SensorId]) + "}", "Sensor Driver Configuration; note that drivers do not update until restart.", ConfigCategory.DRIVERS, lambda x: isinstance(x, dict), "json")
     driver_relays = conf_property_evald("driver_relays", "{" + ', '.join([f"\"{key.value}\":(\"gfci_relay\", {{ 'circuit': {1 if key.value == 'gfci1' else 2} }})" if key.value.startswith('gfci') else f"\"{key.value}\":(\"dummy\", {{ }})" for key in RelayId]) + "}", "Relay Driver Configuration", ConfigCategory.DRIVERS, lambda x: isinstance(x, dict), "json")
     driver_lcd = conf_property_evald("driver_lcd", "(\"dummy\", {})", "LCD Driver Configuration", ConfigCategory.DRIVERS, lambda x: isinstance(x, dict), "text")
     driver_gfci = conf_property_evald("driver_gfci", "(\"dummy\", {})", "GFCI Driver Configuration", ConfigCategory.DRIVERS, lambda x: isinstance(x, dict), "text")
+
+    # Misc
+    lcd_status_period = conf_property_evald("lcd_status_period", "8", "Seconds for which each status screen is up on the status LCD", ConfigCategory.MISC, lambda x: isinstance(x, int), "number")
