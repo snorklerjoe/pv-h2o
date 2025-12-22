@@ -67,6 +67,8 @@
     let addModal;
     let currentValues = {};
     let charts = {};
+    let calCharts = {};
+    let chartInterval = null;
 
     function updateCharts() {
         const minutes = document.getElementById('timescale-select').value;
@@ -174,6 +176,14 @@
                     }
                 }
                 charts = {}; // Reset charts object
+                
+                // Destroy existing calibration charts
+                for (const sensor in calCharts) {
+                    if (calCharts[sensor]) {
+                        calCharts[sensor].destroy();
+                    }
+                }
+                calCharts = {};
 
                 container.innerHTML = '';
 
@@ -212,6 +222,24 @@
                         p.textContent = 'No calibration points. Using raw values.';
                         body.appendChild(p);
                     } else {
+                        // Calibration Plot Checkbox
+                        const checkDiv = document.createElement('div');
+                        checkDiv.className = 'form-check form-switch mb-2';
+                        checkDiv.innerHTML = `
+                            <input class="form-check-input" type="checkbox" id="show-cal-${sensor}" onchange="toggleCalPlot('${sensor}')">
+                            <label class="form-check-label" for="show-cal-${sensor}">Show Calibration Plot</label>
+                        `;
+                        body.appendChild(checkDiv);
+
+                        // Calibration Plot Container
+                        const calPlotContainer = document.createElement('div');
+                        calPlotContainer.id = `cal-plot-container-${sensor}`;
+                        calPlotContainer.style.display = 'none';
+                        calPlotContainer.style.height = '200px';
+                        calPlotContainer.className = 'mb-3';
+                        calPlotContainer.innerHTML = `<canvas id="cal-chart-${sensor}"></canvas>`;
+                        body.appendChild(calPlotContainer);
+
                         const table = document.createElement('table');
                         table.className = 'table table-striped';
                         table.innerHTML = `<thead><tr><th>Measured (Raw)</th><th>Actual (Ref)</th><th>Action</th></tr></thead><tbody></tbody>`;
@@ -234,12 +262,67 @@
                     container.appendChild(card);
                 });
                 
+                // Create Calibration Charts
+                sensors.forEach(sensor => {
+                    const sensorData = data[sensor];
+                    const points = sensorData.points;
+                    if (points.length > 0) {
+                        const ctx = document.getElementById(`cal-chart-${sensor}`);
+                        if (ctx) {
+                            const sortedPoints = [...points].sort((a, b) => a.measured - b.measured);
+                            const plotData = sortedPoints.map(p => ({x: p.measured, y: p.actual}));
+                            
+                            calCharts[sensor] = new Chart(ctx, {
+                                type: 'scatter',
+                                data: {
+                                    datasets: [{
+                                        label: 'Calibration Points',
+                                        data: plotData,
+                                        backgroundColor: 'rgba(255, 99, 132, 1)',
+                                        showLine: true,
+                                        borderColor: 'rgba(255, 99, 132, 1)',
+                                        tension: 0
+                                    }]
+                                },
+                                options: {
+                                    responsive: true,
+                                    maintainAspectRatio: false,
+                                    scales: {
+                                        x: {
+                                            type: 'linear',
+                                            position: 'bottom',
+                                            title: { display: true, text: 'Measured (Raw)' }
+                                        },
+                                        y: {
+                                            title: { display: true, text: 'Actual (Ref)' }
+                                        }
+                                    }
+                                }
+                            });
+                        }
+                    }
+                });
+
                 // Trigger an immediate status update to fill values
                 updateStatus();
                 updateCharts();
-                setInterval(updateCharts, 30000); // Update charts every 30s
+                if (chartInterval) clearInterval(chartInterval);
+                chartInterval = setInterval(updateCharts, 30000); // Update charts every 30s
             })
             .catch(err => console.error('Error loading calibration:', err));
+    }
+
+    function toggleCalPlot(sensor) {
+        const container = document.getElementById(`cal-plot-container-${sensor}`);
+        const checkbox = document.getElementById(`show-cal-${sensor}`);
+        if (checkbox.checked) {
+            container.style.display = 'block';
+            if (calCharts[sensor]) {
+                calCharts[sensor].resize();
+            }
+        } else {
+            container.style.display = 'none';
+        }
     }
 
     function openAddModal(sensor) {
