@@ -240,6 +240,17 @@
     </div>
 </div>
 
+<div class="row mt-4">
+    <div class="col-md-12">
+        <div class="card">
+            <div class="card-header">Regulator Status</div>
+            <div class="card-body">
+                <pre id="regulator-status" class="mb-0 p-3 border rounded" style="white-space: pre-wrap; background-color: var(--bs-body-bg); color: var(--bs-body-color);">Loading...</pre>
+            </div>
+        </div>
+    </div>
+</div>
+
 <script>
     let circuitStates = [false, false];
     let manualMode = false;
@@ -276,6 +287,12 @@
                     wdAlert.classList.remove('d-none');
                 } else {
                     wdAlert.classList.add('d-none');
+                }
+
+                // Update Regulator Status
+                const regStatus = document.getElementById('regulator-status');
+                if (regStatus) {
+                    regStatus.textContent = data.regulator_status || "No status available";
                 }
 
                 // Update Sensors

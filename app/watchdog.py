@@ -4,6 +4,8 @@ from abc import ABC, abstractmethod
 from enum import Enum
 from typing import Type, Optional
 
+from app.dynconfig import DynConfig
+
 class WatchdogTrigger(ABC):
     """ Specifies a particular thing to be checking for.
     """
@@ -14,6 +16,7 @@ class WatchdogTrigger(ABC):
     # Register subclasses
     def __init_subclass__(cls):
         WatchdogTrigger._all_triggers.append(cls)
+        cls._alarm_state = False
         return super().__init_subclass__()
 
     @classmethod
@@ -23,8 +26,11 @@ class WatchdogTrigger(ABC):
     @classmethod
     def trigger_alarm_state(cls):
         cls._alarm_state = True
-        WatchdogTrigger._alarm_state = True
-        WatchdogTrigger._triggered_check = cls
+        
+        # Only trip the master alarm if this trigger is NOT excluded
+        if cls.__name__ not in DynConfig.watchdog_excludes:
+            WatchdogTrigger._alarm_state = True
+            WatchdogTrigger._triggered_check = cls
 
     @staticmethod
     def clear_alarm():

@@ -18,7 +18,11 @@
                         <label for="end-time" class="form-label">End Time</label>
                         <input type="datetime-local" class="form-control" id="end-time" required>
                     </div>
-                    <div class="col-md-4">
+                    <div class="col-md-2">
+                        <label for="smoothing" class="form-label">Smoothing (pts)</label>
+                        <input type="number" class="form-control" id="smoothing" value="1" min="1" max="100">
+                    </div>
+                    <div class="col-md-2">
                         <label class="form-label">Sensors</label>
                         <div class="dropdown">
                             <button class="btn btn-outline-secondary dropdown-toggle w-100" type="button" id="sensorDropdown" data-bs-toggle="dropdown" aria-expanded="false">
@@ -101,6 +105,7 @@
     function updateGraph() {
         const start = new Date(document.getElementById('start-time').value).toISOString();
         const end = new Date(document.getElementById('end-time').value).toISOString();
+        const smoothing = parseInt(document.getElementById('smoothing').value) || 1;
         
         const selectedSensors = Array.from(document.querySelectorAll('.sensor-check:checked')).map(cb => cb.value);
         
@@ -116,6 +121,23 @@
                 const timestamps = data.timestamps.map(t => new Date(t).toLocaleString());
                 
                 const datasets = Object.entries(data.sensors).map(([sensor, values], index) => {
+                    // Apply smoothing (Simple Moving Average)
+                    let smoothedValues = values;
+                    if (smoothing > 1) {
+                        smoothedValues = [];
+                        for (let i = 0; i < values.length; i++) {
+                            let sum = 0;
+                            let count = 0;
+                            for (let j = 0; j < smoothing; j++) {
+                                if (i - j >= 0 && values[i - j] !== null) {
+                                    sum += values[i - j];
+                                    count++;
+                                }
+                            }
+                            smoothedValues.push(count > 0 ? sum / count : null);
+                        }
+                    }
+
                     const colors = [
                         'rgb(255, 99, 132)', 'rgb(54, 162, 235)', 'rgb(255, 206, 86)', 
                         'rgb(75, 192, 192)', 'rgb(153, 102, 255)', 'rgb(255, 159, 64)',
@@ -123,7 +145,7 @@
                     ];
                     return {
                         label: sensor,
-                        data: values,
+                        data: smoothedValues,
                         borderColor: colors[index % colors.length],
                         tension: 0.1,
                         pointRadius: 0,

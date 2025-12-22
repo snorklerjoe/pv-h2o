@@ -21,7 +21,7 @@ class Regulator:
         return cls._instance
 
     def __init__(self):
-        pass
+        self._status_repr = "~ Regulator hook not yet executed. ~"
 
     @staticmethod
     def start_regulation():
@@ -46,6 +46,9 @@ class Regulator:
         window = (sunrise + rise_delta, sunset - set_delta)
         return window[0] < datetime.now(Config.TIMEZONE) < window[1]
 
+    def get_status_str(self) -> str:
+        """ Returns a human-readable string describing the current regulation "decision" """
+        return self._status_repr
 
     def hook(self):
         """ Runs through sensor measurements and does all necessary regulation. """
@@ -59,10 +62,12 @@ class Regulator:
         #     return
 
         if DynConfig.manual_mode:
+            self._status_repr = "Manual mode => No regulator action."
             return
 
         # Handle things if it is night
         if not self._is_light_out():
+            self._status_repr = "It's dark out => Circuits are off."
             # Turn everything off, it's night time
             for relay in RelayId:
                 HardwareState.set_relay(relay, False)
@@ -73,6 +78,7 @@ class Regulator:
             # Check temperature
             reading = HardwareState.cur_sensor_values[SensorId.t1]
             if reading is None:
+                self._status_repr = "C1:  Bad/nonexistent sensor reading."
                 HardwareState.set_relay(RelayId.circ1, False)
             else:
                 current_temp = reading.cald
@@ -80,17 +86,24 @@ class Regulator:
                 hysteresis = DynConfig.temp_hysteresis
                 
                 if current_temp < (target_temp - hysteresis):
+                    self._status_repr = "C1:  Fell below target-hysteresis => Circuit ON."
                     HardwareState.set_relay(RelayId.circ1, True)
                 elif current_temp > target_temp:
+                    self._status_repr = "C1:  Above target temp => Circuit OFF."
                     HardwareState.set_relay(RelayId.circ1, False)
         else:
+            self._status_repr = "C1:  Disabled => Circuit OFF."
             HardwareState.set_relay(RelayId.circ1, False)
+
+        self._status_repr += "\n"
+
 
         # Circuit 2 regulation
         if HardwareState.circuits_enabled[1]:  # If circuit is "turned on"
             # Check temperature
             reading = HardwareState.cur_sensor_values[SensorId.t2]
             if reading is None:
+                self._status_repr += "C2:  Bad/nonexistent sensor reading."
                 HardwareState.set_relay(RelayId.circ2, False)
             else:
                 current_temp = reading.cald
@@ -98,8 +111,11 @@ class Regulator:
                 hysteresis = DynConfig.temp_hysteresis
                 
                 if current_temp < (target_temp - hysteresis):
+                    self._status_repr += "C2:  Fell below target-hysteresis => Circuit ON."
                     HardwareState.set_relay(RelayId.circ2, True)
                 elif current_temp > target_temp:
+                    self._status_repr += "C2:  Above target temp => Circuit OFF."
                     HardwareState.set_relay(RelayId.circ2, False)
         else:
+            self._status_repr += "C2:  Disabled => Circuit OFF."
             HardwareState.set_relay(RelayId.circ2, False) 

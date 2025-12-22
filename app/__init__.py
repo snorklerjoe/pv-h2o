@@ -109,8 +109,13 @@ def initialize_backend(flask_app):
     @scheduler.task('interval', id='watchdog', seconds=Config.WATCDOG_PERIOD_SEC, misfire_grace_time=3*Config.WATCDOG_PERIOD_SEC)
     def watchdog():
         was_not_tripped: bool = not WatchdogTrigger.is_tripped()
+        any_tripped: bool = False
         for check in list(WatchdogTrigger.all_triggers()):
             check.run_check()
+            any_tripped = any_tripped or check.is_tripped()
+        if not any_tripped and not was_not_tripped:  # Make sure clearing propagates back up to master alarm state
+            WatchdogTrigger.clear()
+
         if was_not_tripped and WatchdogTrigger.is_tripped() and DynConfig.notify_email_enabled:  # Send a notification if something just happened
             notifier.send_alert(
                 "Solar Watchdog Tripped",

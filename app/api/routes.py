@@ -41,7 +41,8 @@ def get_status():
         'is_day': not Regulator()._is_light_out(), # _is_light_out returns True if it is night
         'manual_mode': DynConfig.manual_mode,
         'circuit_enables': DynConfig.circuit_states,
-        'watchdog_tripped': WatchdogTrigger.is_tripped()
+        'watchdog_tripped': WatchdogTrigger.is_tripped(),
+        'regulator_status': Regulator().get_status_str()
     })
 
 @bp.route('/watchdog', methods=['GET'])
@@ -49,16 +50,48 @@ def get_status():
 def get_watchdog_status():
     """ Get status of all watchdog triggers """
     triggers = []
+    excludes = DynConfig.watchdog_excludes
+    
     for trigger in WatchdogTrigger.all_triggers():
         triggers.append({
             'name': trigger.__name__,
-            'status': trigger.notify_state()
+            'status': trigger.notify_state(),
+            'is_tripped': trigger.is_tripped(),
+            'enabled': trigger.__name__ not in excludes
         })
     
     return jsonify({
         'tripped': WatchdogTrigger.is_tripped(),
         'triggers': triggers
     })
+
+@bp.route('/watchdog/toggle/<name>', methods=['POST'])
+@login_required
+def toggle_watchdog_enable(name):
+    """ Toggle enable/disable state of a watchdog trigger """
+    data = request.get_json()
+    enabled = data.get('enabled')
+    
+    excludes = DynConfig.watchdog_excludes
+    
+    if enabled:
+        if name in excludes:
+            excludes.remove(name)
+    else:
+        if name not in excludes:
+            excludes.append(name)
+            
+    # Update config
+    conf = SystemConfig.query.filter_by(key='watchdog_excludes').first()
+    if not conf:
+        conf = SystemConfig(key='watchdog_excludes')
+        db.session.add(conf)
+    
+    conf.value = str(excludes)
+    db.session.commit()
+    DynConfig.reload()
+    
+    return jsonify({'success': True})
 
 @bp.route('/watchdog/clear', methods=['POST'])
 @login_required
@@ -169,6 +202,7 @@ def get_config():
             'value': val,
             'default': meta['default'],
             'description': meta['description'],
+            'category': meta.get('category', 'System'),
             'is_eval': meta['is_eval'],
             'value_type': meta.get('value_type', 'text')
         }

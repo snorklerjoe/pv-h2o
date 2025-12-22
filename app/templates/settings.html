@@ -25,6 +25,8 @@
 </div>
 
 <script>
+    const categoryOrder = {{ categories | tojson }};
+
     document.addEventListener('DOMContentLoaded', loadConfig);
 
     function loadConfig() {
@@ -34,85 +36,124 @@
                 const container = document.getElementById('config-fields');
                 container.innerHTML = ''; // Clear loading spinner
 
-                // Sort keys for consistent display
-                const keys = Object.keys(data).sort();
-
-                keys.forEach(key => {
+                // Group by category
+                const categories = {};
+                Object.keys(data).forEach(key => {
                     const item = data[key];
-                    const formGroup = document.createElement('div');
-                    formGroup.className = 'mb-3 row';
+                    const cat = item.category || 'Other';
+                    if (!categories[cat]) categories[cat] = [];
+                    categories[cat].push({ key, ...item });
+                });
 
-                    const label = document.createElement('label');
-                    label.className = 'col-sm-4 col-form-label';
-                    label.htmlFor = `input-${key}`;
-                    label.innerHTML = `<strong>${key}</strong><br><small class="text-muted">${item.description}</small>`;
+                // Sort categories based on Enum order
+                const sortedCats = Object.keys(categories).sort((a, b) => {
+                    const idxA = categoryOrder.indexOf(a);
+                    const idxB = categoryOrder.indexOf(b);
+                    
+                    // If both are in the list, sort by index
+                    if (idxA !== -1 && idxB !== -1) return idxA - idxB;
+                    
+                    // If only A is in the list, it comes first
+                    if (idxA !== -1) return -1;
+                    
+                    // If only B is in the list, it comes first
+                    if (idxB !== -1) return 1;
+                    
+                    // Otherwise sort alphabetically
+                    return a.localeCompare(b);
+                });
 
-                    const divInput = document.createElement('div');
-                    divInput.className = 'col-sm-6';
+                sortedCats.forEach(catName => {
+                    // Create Category Header
+                    const catHeader = document.createElement('h4');
+                    catHeader.className = 'mt-4 mb-3 border-bottom pb-2 text-primary';
+                    catHeader.textContent = catName;
+                    container.appendChild(catHeader);
 
-                    let input;
-                    let getValue;
+                    // Sort items within category
+                    categories[catName].sort((a, b) => a.key.localeCompare(b.key));
 
-                    if (item.value_type === 'boolean') {
-                        const wrapper = document.createElement('div');
-                        wrapper.className = 'form-check form-switch pt-2';
-                        
-                        input = document.createElement('input');
-                        input.className = 'form-check-input';
-                        input.type = 'checkbox';
-                        input.id = `input-${key}`;
-                        input.checked = item.value === true; // Ensure strict boolean check
-                        
-                        wrapper.appendChild(input);
-                        divInput.appendChild(wrapper);
-                        
-                        getValue = () => input.checked;
-                    } else if (item.value_type === 'number') {
-                        input = document.createElement('input');
-                        input.type = 'number';
-                        input.step = 'any';
-                        input.className = 'form-control';
-                        input.id = `input-${key}`;
-                        input.value = item.value;
-                        divInput.appendChild(input);
-                        
-                        getValue = () => parseFloat(input.value);
-                    } else {
-                        input = document.createElement('input');
-                        input.type = 'text';
-                        input.className = 'form-control';
-                        input.id = `input-${key}`;
-                        
-                        // Handle array/eval types
-                        // The API now returns the raw string for eval types, so we don't need to stringify objects
-                        let displayValue = item.value;
-                        if (typeof displayValue === 'object' && displayValue !== null) {
-                             // Fallback just in case
-                            displayValue = JSON.stringify(displayValue);
+                    categories[catName].forEach(item => {
+                        const key = item.key;
+                        const formGroup = document.createElement('div');
+                        formGroup.className = 'mb-3 row';
+
+                        const label = document.createElement('label');
+                        label.className = 'col-sm-4 col-form-label';
+                        label.htmlFor = `input-${key}`;
+                        label.innerHTML = `<strong>${key}</strong><br><small class="text-muted">${item.description}</small>`;
+
+                        const divInput = document.createElement('div');
+                        divInput.className = 'col-sm-6';
+
+                        let input;
+                        let getValue;
+
+                        if (item.value_type === 'boolean') {
+                            const wrapper = document.createElement('div');
+                            wrapper.className = 'form-check form-switch pt-2';
+                            
+                            input = document.createElement('input');
+                            input.className = 'form-check-input';
+                            input.type = 'checkbox';
+                            input.id = `input-${key}`;
+                            input.checked = item.value === true; // Ensure strict boolean check
+                            
+                            // Make the switch larger to match other inputs better
+                            input.style.fontSize = '1.4rem'; 
+                            input.style.cursor = 'pointer';
+
+                            wrapper.appendChild(input);
+                            divInput.appendChild(wrapper);
+                            
+                            getValue = () => input.checked;
+                        } else if (item.value_type === 'number') {
+                            input = document.createElement('input');
+                            input.type = 'number';
+                            input.step = 'any';
+                            input.className = 'form-control';
+                            input.id = `input-${key}`;
+                            input.value = item.value;
+                            divInput.appendChild(input);
+                            
+                            getValue = () => parseFloat(input.value);
+                        } else {
+                            input = document.createElement('input');
+                            input.type = 'text';
+                            input.className = 'form-control';
+                            input.id = `input-${key}`;
+                            
+                            // Handle array/eval types
+                            // The API now returns the raw string for eval types, so we don't need to stringify objects
+                            let displayValue = item.value;
+                            if (typeof displayValue === 'object' && displayValue !== null) {
+                                // Fallback just in case
+                                displayValue = JSON.stringify(displayValue);
+                            }
+                            input.value = displayValue;
+                            divInput.appendChild(input);
+                            
+                            getValue = () => input.value;
                         }
-                        input.value = displayValue;
-                        divInput.appendChild(input);
+
+                        const divBtn = document.createElement('div');
+                        divBtn.className = 'col-sm-2';
                         
-                        getValue = () => input.value;
-                    }
+                        const btn = document.createElement('button');
+                        btn.className = 'btn btn-primary w-100';
+                        btn.textContent = 'Save';
+                        btn.type = 'button';
+                        btn.onclick = () => saveConfig(key, getValue());
 
-                    const divBtn = document.createElement('div');
-                    divBtn.className = 'col-sm-2';
-                    
-                    const btn = document.createElement('button');
-                    btn.className = 'btn btn-primary w-100';
-                    btn.textContent = 'Save';
-                    btn.type = 'button';
-                    btn.onclick = () => saveConfig(key, getValue());
+                        divBtn.appendChild(btn);
+                        
+                        formGroup.appendChild(label);
+                        formGroup.appendChild(divInput);
+                        formGroup.appendChild(divBtn);
 
-                    divBtn.appendChild(btn);
-                    
-                    formGroup.appendChild(label);
-                    formGroup.appendChild(divInput);
-                    formGroup.appendChild(divBtn);
-
-                    container.appendChild(formGroup);
-                    container.appendChild(document.createElement('hr'));
+                        container.appendChild(formGroup);
+                        container.appendChild(document.createElement('hr'));
+                    });
                 });
             })
             .catch(err => {

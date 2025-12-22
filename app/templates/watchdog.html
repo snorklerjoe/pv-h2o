@@ -52,13 +52,35 @@
                     const item = document.createElement('div');
                     item.className = 'list-group-item list-group-item-action';
                     
+                    // Color logic
+                    if (!trigger.enabled) {
+                        if (trigger.is_tripped) {
+                            item.classList.add('list-group-item-warning'); // Disabled but tripped
+                        } else {
+                            item.classList.add('list-group-item-secondary'); // Disabled and normal
+                        }
+                    } else if (trigger.is_tripped) {
+                        item.classList.add('list-group-item-danger'); // Enabled and tripped
+                    }
+                    
                     const header = document.createElement('div');
                     header.className = 'd-flex w-100 justify-content-between align-items-center';
-                    header.innerHTML = `<h5 class="mb-1">${trigger.name}</h5>`;
+                    header.innerHTML = `
+                        <h5 class="mb-1">${trigger.name}</h5>
+                        <div class="form-check form-switch">
+                            <input class="form-check-input" type="checkbox" id="sw-${trigger.name}" 
+                                ${trigger.enabled ? 'checked' : ''} 
+                                onchange="toggleWatchdog('${trigger.name}', this.checked)">
+                            <label class="form-check-label" for="sw-${trigger.name}">Enabled</label>
+                        </div>
+                    `;
                     
                     const body = document.createElement('p');
                     body.className = 'mb-1';
                     body.textContent = trigger.status;
+                    if (!trigger.enabled) {
+                        body.textContent += " (DISABLED)";
+                    }
                     
                     const actions = document.createElement('div');
                     actions.className = 'mt-2';
@@ -76,6 +98,22 @@
                 container.appendChild(list);
             })
             .catch(err => console.error('Error loading watchdog status:', err));
+    }
+
+    function toggleWatchdog(name, enabled) {
+        fetch(`/api/watchdog/toggle/${name}`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ enabled: enabled })
+        })
+        .then(response => response.json())
+        .then(data => {
+            if (data.success) loadWatchdogs();
+            else {
+                alert('Failed to toggle watchdog');
+                loadWatchdogs(); // Revert UI
+            }
+        });
     }
 
     function clearAllWatchdogs() {

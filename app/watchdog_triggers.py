@@ -28,7 +28,7 @@ class OverCurrentTrigger(WatchdogTrigger):
 
     @classmethod
     def notify_state(cls) -> str:
-        if cls.is_tripped:
+        if cls.is_tripped():
             return f"Over Current Trigger: Limit {DynConfig.trip_current_max_amps}A exceeded."
         return f"Over Current Trigger: Limit {DynConfig.trip_current_max_amps}A met."
 
@@ -55,7 +55,7 @@ class OverTemperatureTrigger(WatchdogTrigger):
 
     @classmethod
     def notify_state(cls) -> str:
-        if cls.is_tripped:
+        if cls.is_tripped():
             return f"Over Temperature Trigger: Limit {DynConfig.trip_temp_max_f}F exceeded."
         return f"Over Temperature Trigger: Limit {DynConfig.trip_temp_max_f}F met."
 
@@ -90,7 +90,7 @@ class SubnominalResistanceTrigger(WatchdogTrigger):
 
     @classmethod
     def notify_state(cls) -> str:
-        if cls.is_tripped:
+        if cls.is_tripped():
             return f"Sub-nominal Resistance Trigger: Resistance above {DynConfig.trip_impedance_min_ohms} Ohms."
         return f"Sub-nominal Resistance Trigger: Resistance below {DynConfig.trip_impedance_min_ohms} Ohms."
 
@@ -119,6 +119,6 @@ class LeakageCurrentTrigger(WatchdogTrigger):
 
     @classmethod
     def notify_state(cls) -> str:
-        if cls.is_tripped:
+        if cls.is_tripped():
             return f"Leakage Current Trigger: Current measurement stays below {DynConfig.trip_leakage_threshold_amps}A while relay OFF."
         return f"Leakage Current Trigger: Current > {DynConfig.trip_leakage_threshold_amps}A detected while relay OFF."

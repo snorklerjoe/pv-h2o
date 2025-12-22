@@ -3,7 +3,7 @@ from flask_login import current_user, login_user, logout_user, login_required
 from app import db
 from app.models import User
 from app.forms import LoginForm
-from app.dynconfig import DynConfig
+from app.dynconfig import DynConfig, ConfigCategory
 
 bp = Blueprint('main', __name__)
 
@@ -41,7 +41,7 @@ def logout():
 @bp.route('/settings')
 @login_required
 def settings():
-    return render_template('settings.html', title='Settings')
+    return render_template('settings.html', title='Settings', categories=[c.value for c in ConfigCategory])
 
 @bp.route('/sensors')
 @login_required
