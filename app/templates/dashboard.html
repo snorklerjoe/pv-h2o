@@ -141,6 +141,10 @@
                             <span class="slider"></span>
                         </label>
                         <div class="breaker-label">GFCI</div>
+                        <div class="mt-1 btn-group btn-group-sm" role="group">
+                            <button type="button" class="btn btn-outline-danger py-0 px-1" style="font-size: 0.65rem;" onclick="tripGFCI(1)">Trip</button>
+                            <button type="button" class="btn btn-outline-success py-0 px-1" style="font-size: 0.65rem;" onclick="resetGFCI(1)">Rst</button>
+                        </div>
                     </div>
                     <div class="breaker-container">
                         <label class="breaker-switch" id="lbl-sw-circ1">
@@ -169,7 +173,7 @@
             </div>
         </div>
     </div>
-
+    
     <!-- Circuit 2 -->
     <div class="col-md-6">
         <div class="card mb-4" id="card-circ2">
@@ -195,6 +199,14 @@
                             <span class="slider"></span>
                         </label>
                         <div class="breaker-label">GFCI</div>
+                        <div class="mt-1 btn-group btn-group-sm" role="group">
+                            <button type="button" class="btn btn-outline-danger py-0 px-1" style="font-size: 0.65rem;" onclick="tripGFCI(2)">Trip</button>
+                            <button type="button" class="btn btn-outline-success py-0 px-1" style="font-size: 0.65rem;" onclick="resetGFCI(2)">Rst</button>
+                        </div>
+                    </div>
+                    <div class="breaker-container">
+                        <label class="breaker-switch" id="lbl-sw-circ2">
+                        <div class="breaker-label">GFCI</div>
                     </div>
                     <div class="breaker-container">
                         <label class="breaker-switch" id="lbl-sw-circ2">
@@ -218,6 +230,37 @@
                     </div>
                     <div class="col-6">
                         <strong>Voltage:</strong> <span id="val-v2">--</span> V
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<div class="row">
+    <div class="col-md-12 mb-4">
+        <div class="card" id="gfci-card">
+            <div class="card-header d-flex justify-content-between align-items-center">
+                <h5 class="mb-0">GFCI System Status</h5>
+                <span id="gfci-status-badge" class="badge bg-secondary">Unknown</span>
+            </div>
+            <div class="card-body">
+                <div class="row text-center">
+                    <div class="col-md-3">
+                        <strong>Connection:</strong>
+                        <div id="gfci-ping" class="fw-bold">--</div>
+                    </div>
+                    <div class="col-md-3">
+                        <strong>Status:</strong>
+                        <div id="gfci-tripped" class="fw-bold">--</div>
+                    </div>
+                    <div class="col-md-3">
+                        <strong>Enabled:</strong>
+                        <div id="gfci-enabled" class="fw-bold">--</div>
+                    </div>
+                    <div class="col-md-3">
+                        <strong>Threshold:</strong>
+                        <div id="gfci-threshold">-- mA</div>
                     </div>
                 </div>
             </div>
@@ -330,6 +373,67 @@
                 circuitStates = data.circuit_enables;
                 updateCircuitButton(0, circuitStates[0]);
                 updateCircuitButton(1, circuitStates[1]);
+
+                // Update GFCI Status
+                if (data.gfci) {
+                    const gfciCard = document.getElementById('gfci-card');
+                    const gfciBadge = document.getElementById('gfci-status-badge');
+                    const pingEl = document.getElementById('gfci-ping');
+                    const trippedEl = document.getElementById('gfci-tripped');
+                    const enabledEl = document.getElementById('gfci-enabled');
+                    const threshEl = document.getElementById('gfci-threshold');
+
+                    // Ping
+                    if (data.gfci.ping) {
+                        pingEl.textContent = "ONLINE";
+                        pingEl.className = "fw-bold text-success";
+                    } else {
+                        pingEl.textContent = "OFFLINE";
+                        pingEl.className = "fw-bold text-danger";
+                    }
+
+                    // Tripped
+                    // data.gfci.tripped is now an array [bool, bool]
+                    const isTripped = Array.isArray(data.gfci.tripped) ? (data.gfci.tripped[0] || data.gfci.tripped[1]) : data.gfci.tripped;
+                    
+                    if (isTripped) {
+                        trippedEl.textContent = "TRIPPED";
+                        trippedEl.className = "fw-bold text-danger";
+                        gfciBadge.textContent = "TRIPPED";
+                        gfciBadge.className = "badge bg-danger";
+                        gfciCard.className = "card bg-warning bg-opacity-25 border-warning";
+                    } else {
+                        trippedEl.textContent = "OK";
+                        trippedEl.className = "fw-bold text-success";
+                        gfciBadge.textContent = "OK";
+                        gfciBadge.className = "badge bg-success";
+                        gfciCard.className = "card";
+                    }
+
+                    // Enabled
+                    if (data.gfci.enabled) {
+                        enabledEl.textContent = "YES";
+                        enabledEl.className = "fw-bold text-success";
+                    } else {
+                        enabledEl.textContent = "NO";
+                        enabledEl.className = "fw-bold text-warning";
+                        // If disabled, also show warning background if not already tripped
+                        if (!isTripped) {
+                            gfciCard.className = "card bg-warning bg-opacity-10 border-warning";
+                            gfciBadge.textContent = "DISABLED";
+                            gfciBadge.className = "badge bg-warning text-dark";
+                        }
+                    }
+                    
+                    // If offline, override card style to danger
+                    if (!data.gfci.ping) {
+                         gfciCard.className = "card bg-danger bg-opacity-10 border-danger";
+                         gfciBadge.textContent = "OFFLINE";
+                         gfciBadge.className = "badge bg-danger";
+                    }
+
+                    threshEl.textContent = data.gfci.threshold + " mA";
+                }
             })
             .catch(err => console.error('Error fetching status:', err));
     }
@@ -432,6 +536,24 @@
                 document.getElementById(`sw-${relayName}`).checked = !newState;
             }
         });
+    }
+
+    function tripGFCI(circuit) {
+        fetch(`/api/gfci/trip/${circuit}`, { method: 'POST' })
+            .then(r => r.json())
+            .then(d => {
+                if(d.success) updateDashboard();
+                else alert("Failed to trip GFCI: " + d.error);
+            });
+    }
+
+    function resetGFCI(circuit) {
+        fetch(`/api/gfci/reset/${circuit}`, { method: 'POST' })
+            .then(r => r.json())
+            .then(d => {
+                if(d.success) updateDashboard();
+                else alert("Failed to reset GFCI: " + d.error);
+            });
     }
 
     // Poll every 2 seconds

@@ -108,30 +108,33 @@ def initialize_backend(flask_app):
     import app.watchdog_triggers # Register triggers
     @scheduler.task('interval', id='watchdog', seconds=Config.WATCDOG_PERIOD_SEC, misfire_grace_time=3*Config.WATCDOG_PERIOD_SEC)
     def watchdog():
-        was_not_tripped: bool = not WatchdogTrigger.is_tripped()
-        any_tripped: bool = False
-        for check in list(WatchdogTrigger.all_triggers()):
-            check.run_check()
-            any_tripped = any_tripped or check.is_tripped()
-        if not any_tripped and not was_not_tripped:  # Make sure clearing propagates back up to master alarm state
-            WatchdogTrigger.clear()
+        with flask_app.app_context():
+            was_not_tripped: bool = not WatchdogTrigger.is_tripped()
+            any_tripped: bool = False
+            for check in list(WatchdogTrigger.all_triggers()):
+                check.run_check()
+                any_tripped = any_tripped or check.is_tripped()
+            if not any_tripped and not was_not_tripped:  # Make sure clearing propagates back up to master alarm state
+                WatchdogTrigger.clear()
 
-        if was_not_tripped and WatchdogTrigger.is_tripped() and DynConfig.notify_email_enabled:  # Send a notification if something just happened
-            notifier.send_alert(
-                "Solar Watchdog Tripped",
-                WatchdogTrigger.gen_notify_repr()
-            )
+            if was_not_tripped and WatchdogTrigger.is_tripped() and DynConfig.notify_email_enabled:  # Send a notification if something just happened
+                notifier.send_alert(
+                    "Solar Watchdog Tripped",
+                    WatchdogTrigger.gen_notify_repr()
+                )
 
     # Schedule saving daily summary stats to database
     @scheduler.task('cron', id='summary', minute=0, hour=str(Config.SUMMARY_RUN_HOUR))
     def summary():
-        run_summary()
+        with flask_app.app_context():
+            run_summary()
     
     if not scheduler.running:
         scheduler.start()
 
     # Get the sensor polling loop going
     from .hardwarestate import HardwareState
+    HardwareState.sync_gfci_settings()
     HardwareState.start_sensorpolling(flask_app)
 
     # Get the regulation loop going

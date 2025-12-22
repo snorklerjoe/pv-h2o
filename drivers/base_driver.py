@@ -88,9 +88,51 @@ class BaseGFCIDriver(HardwareDriver):
         pass
 
     @abstractmethod
+    def ping(self) -> bool:
+        """ Checks connection with GFCI system and returns True if online """
+    
+    @abstractmethod
+    def set_enabled(self, value: bool):
+        """ Sets whether or not the GFCI breaker is even enabled """
+        pass
+
+    @abstractmethod
     def set_tripped(self, circuit: int):
-        """ Forces the circuit to trip (circuit 1 or circuit 2) """
+        """ Forces the circuit to trip """
+        pass
+
+    @abstractmethod
+    def is_tripped(self, circuit: int) -> bool:
+        """ Returns True if the GFCI is currently tripped for the specified circuit """
+        pass
 
     @abstractmethod
     def reset_tripped(self, circuit: int):
         """ Forces the circuit to cease to be tripped (circuit 1 or circuit 2) """
+        pass
+
+@BaseOutputDriver.register_driver("gfci_relay")
+class GFCIRelay(BaseOutputDriver):
+    def __init__(self, params=None):
+        super().__init__(params)
+        self.circuit = int(self.params.get('circuit', 1))
+
+    def hardware_init(self):
+        pass
+
+    def hardware_deinit(self):
+        pass
+
+    def set_state(self, state):
+        from app.hardware import gfci_driver
+        if gfci_driver:
+            if state:
+                gfci_driver.reset_tripped(self.circuit)
+            else:
+                gfci_driver.set_tripped(self.circuit)
+
+    def get_state(self):
+        from app.hardware import gfci_driver
+        if gfci_driver:
+            return not gfci_driver.is_tripped(self.circuit)
+        return False

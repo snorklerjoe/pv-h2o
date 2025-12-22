@@ -7,8 +7,8 @@ from datetime import datetime
 from typing import Optional
 from config import Config
 from .calibration import SensorReading
-from .hardware import sensor_drivers, relay_drivers
-from drivers.base_driver import BaseSensorDriver, BaseOutputDriver
+from .hardware import sensor_drivers, relay_drivers, gfci_driver
+from drivers.base_driver import BaseSensorDriver, BaseOutputDriver, GFCIRelay
 from .dynconfig import DynConfig
 from .hardware_constants import SensorId, RelayId
 from threading import Thread
@@ -50,6 +50,11 @@ class HardwareState:
             for sensor_id in HardwareState.cur_sensor_values.keys():
                 driver: BaseSensorDriver = sensor_drivers[sensor_id]
                 new_sensor_values[sensor_id] = SensorReading(driver.read(), sensor_id)
+
+            # Update relay states for GFCIRelay drivers
+            for relay_id, driver in relay_drivers.items():
+                if isinstance(driver, GFCIRelay):
+                    HardwareState._relay_states[relay_id] = driver.get_state()
 
             # Update the "current" latest values all at once (reference updates are atomic)
             HardwareState.cur_sensor_values = new_sensor_values
@@ -126,4 +131,13 @@ class HardwareState:
     @staticmethod
     def get_relay_state(id: RelayId) -> bool:
         return HardwareState._relay_states.get(id, False)
+
+    @staticmethod
+    def sync_gfci_settings():
+        """ Syncs the GFCI settings from DynConfig to the hardware driver """
+        if gfci_driver:
+            logger.info("Syncing GFCI settings to hardware...")
+            gfci_driver.set_threshold(DynConfig.gfci_trip_threshold_ma)
+            gfci_driver.set_tolerance(DynConfig.gfci_response_factor)
+            gfci_driver.set_enabled(DynConfig.gfci_enabled)
 

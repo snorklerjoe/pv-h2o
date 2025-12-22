@@ -14,7 +14,7 @@ class ConfigCategory(Enum):
     REGULATION = "Regulation"
     LOCATION = "Location & Time"
     GFCI = "GFCI Control"
-    WATCHDOG = "Watchdog Safety"
+    WATCHDOG = "Watchdog & Safety"
     NOTIFICATIONS = "Notifications"
     DRIVERS = "Hardware Drivers"
     SYSTEM = "System"
@@ -164,13 +164,14 @@ class DynConfig:
     gfci_esp32_ip = conf_property("gfci_esp32_ip", "192.168.1.100", "IP Address of GFCI ESP32", ConfigCategory.GFCI, lambda x: True, "text")
     gfci_response_factor = conf_property_evald("gfci_response_factor", "1.0", "GFCI Response Factor", ConfigCategory.GFCI, lambda x: isinstance(x, (int, float)) and x > 0, "number")
     gfci_trip_threshold_ma = conf_property_evald("gfci_trip_threshold_ma", "5.0", "GFCI Trip Threshold (mA)", ConfigCategory.GFCI, lambda x: isinstance(x, (int, float)) and x > 0, "number")
+    gfci_enabled = conf_property_evald("gfci_enabled", "True", "Whether the GFCI breakers are even enabled", ConfigCategory.REGULATION, lambda x: isinstance(x, bool), "boolean")
 
     # Watchdog
     watchdog_excludes = conf_property_evald("watchdog_excludes", "[]", "List of disabled watchdog triggers", ConfigCategory.WATCHDOG, lambda x: isinstance(x, list), "json")
-    trip_current_max_amps = conf_property_evald("trip_current_max_amps", "15.0", "Max current before trip (Amps)", ConfigCategory.WATCHDOG, lambda x: isinstance(x, (int, float)) and x > 0, "number")
+    trip_current_max_amps = conf_property_evald("trip_current_max_amps", "20.0", "Max current before trip (Amps)", ConfigCategory.WATCHDOG, lambda x: isinstance(x, (int, float)) and x > 0, "number")
     trip_temp_max_f = conf_property_evald("trip_temp_max_f", "200.0", "Max temperature before trip (F)", ConfigCategory.WATCHDOG, lambda x: isinstance(x, (int, float)) and 0 <= x <= 250, "number")
     trip_impedance_min_ohms = conf_property_evald("trip_impedance_min_ohms", "10.0", "Min impedance before trip (Ohms)", ConfigCategory.WATCHDOG, lambda x: isinstance(x, (int, float)) and x >= 0, "number")
-    trip_leakage_threshold_amps = conf_property_evald("trip_leakage_threshold_amps", "0.1", "Leakage current threshold (Amps)", ConfigCategory.WATCHDOG, lambda x: isinstance(x, (int, float)) and x >= 0, "number")
+    trip_leakage_threshold_amps = conf_property_evald("trip_leakage_threshold_amps", "0.75", "Leakage current threshold (Amps)", ConfigCategory.WATCHDOG, lambda x: isinstance(x, (int, float)) and x >= 0, "number")
 
     # Notifications
     notify_email_enabled = conf_property_evald("notify_email_enabled", "False", "Enable email notifications", ConfigCategory.NOTIFICATIONS, lambda x: isinstance(x, bool), "boolean")
@@ -183,6 +184,6 @@ class DynConfig:
 
     # Drivers for things
     driver_sensors = conf_property_evald("driver_sensors", "{" + ', '.join([f"\"{key.value}\":(\"dummy\", {{ 'value': 2.0, 'noise': 1.0 }})" for key in SensorId]) + "}", "Sensor Driver Configuration", ConfigCategory.DRIVERS, lambda x: isinstance(x, dict), "json")
-    driver_relays = conf_property_evald("driver_relays", "{" + ', '.join([f"\"{key.value}\":(\"dummy\", {{ }})" for key in RelayId]) + "}", "Relay Driver Configuration", ConfigCategory.DRIVERS, lambda x: isinstance(x, dict), "json")
+    driver_relays = conf_property_evald("driver_relays", "{" + ', '.join([f"\"{key.value}\":(\"gfci_relay\", {{ 'circuit': {1 if key.value == 'gfci1' else 2} }})" if key.value.startswith('gfci') else f"\"{key.value}\":(\"dummy\", {{ }})" for key in RelayId]) + "}", "Relay Driver Configuration", ConfigCategory.DRIVERS, lambda x: isinstance(x, dict), "json")
     driver_lcd = conf_property_evald("driver_lcd", "(\"dummy\", {})", "LCD Driver Configuration", ConfigCategory.DRIVERS, lambda x: isinstance(x, dict), "text")
     driver_gfci = conf_property_evald("driver_gfci", "(\"dummy\", {})", "GFCI Driver Configuration", ConfigCategory.DRIVERS, lambda x: isinstance(x, dict), "text")

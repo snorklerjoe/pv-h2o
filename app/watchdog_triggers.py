@@ -4,6 +4,30 @@ from app.watchdog import WatchdogTrigger
 from app.hardwarestate import HardwareState
 from app.hardware_constants import SensorId, RelayId
 from app.dynconfig import DynConfig
+from app.models import SystemConfig
+from app import db
+from loguru import logger
+
+def disable_circuit(circuit_idx):
+    try:
+        # We need to ensure we are working with the latest config
+        current_states = list(DynConfig.circuit_states)
+        if current_states[circuit_idx]:
+            current_states[circuit_idx] = False
+            
+            # We need to be inside an app context to access the DB if we aren't already
+            # The scheduler usually provides one, but let's be safe? 
+            # Actually, we can't easily get the app instance here without circular imports or passing it down.
+            # However, db.session might work if the thread has context.
+            
+            conf = SystemConfig.query.filter_by(key='circuit_states').first()
+            if conf:
+                conf.value = str(current_states)
+                db.session.commit()
+                DynConfig.reload()
+                logger.warning(f"Watchdog disabled circuit {circuit_idx+1} due to fault.")
+    except Exception as e:
+        logger.error(f"Failed to disable circuit {circuit_idx}: {e}")
 
 class OverCurrentTrigger(WatchdogTrigger):
     @classmethod
@@ -17,6 +41,7 @@ class OverCurrentTrigger(WatchdogTrigger):
             if i1 > limit:
                 cls.trigger_alarm_state()
                 HardwareState.set_relay(RelayId.circ1, False)
+                disable_circuit(0)
             
         # Check Circuit 2
         reading = HardwareState.cur_sensor_values[SensorId.i2]
@@ -25,6 +50,7 @@ class OverCurrentTrigger(WatchdogTrigger):
             if i2 > limit:
                 cls.trigger_alarm_state()
                 HardwareState.set_relay(RelayId.circ2, False)
+                disable_circuit(1)
 
     @classmethod
     def notify_state(cls) -> str:
@@ -44,6 +70,7 @@ class OverTemperatureTrigger(WatchdogTrigger):
             if t1 > limit:
                 cls.trigger_alarm_state()
                 HardwareState.set_relay(RelayId.circ1, False)
+                disable_circuit(0)
             
         # Check Tank 2
         reading = HardwareState.cur_sensor_values[SensorId.t2]
@@ -52,6 +79,7 @@ class OverTemperatureTrigger(WatchdogTrigger):
             if t2 > limit:
                 cls.trigger_alarm_state()
                 HardwareState.set_relay(RelayId.circ2, False)
+                disable_circuit(1)
 
     @classmethod
     def notify_state(cls) -> str:
@@ -75,6 +103,7 @@ class SubnominalResistanceTrigger(WatchdogTrigger):
                 if r1 < min_ohms:
                     cls.trigger_alarm_state()
                     HardwareState.set_relay(RelayId.circ1, False)
+                    disable_circuit(0)
 
         # Check Circuit 2
         r_v2 = HardwareState.cur_sensor_values[SensorId.v2]
@@ -87,6 +116,7 @@ class SubnominalResistanceTrigger(WatchdogTrigger):
                 if r2 < min_ohms:
                     cls.trigger_alarm_state()
                     HardwareState.set_relay(RelayId.circ2, False)
+                    disable_circuit(1)
 
     @classmethod
     def notify_state(cls) -> str:
@@ -107,6 +137,7 @@ class LeakageCurrentTrigger(WatchdogTrigger):
                 if i1 > threshold:
                     cls.trigger_alarm_state()
                     HardwareState.set_relay(RelayId.circ1, False)
+                    disable_circuit(0)
 
         # Check Circuit 2
         if not HardwareState.get_relay_state(RelayId.circ2):
@@ -116,6 +147,7 @@ class LeakageCurrentTrigger(WatchdogTrigger):
                 if i2 > threshold:
                     cls.trigger_alarm_state()
                     HardwareState.set_relay(RelayId.circ2, False)
+                    disable_circuit(1)
 
     @classmethod
     def notify_state(cls) -> str:

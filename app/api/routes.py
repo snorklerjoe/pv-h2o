@@ -7,6 +7,7 @@ from app.models import SystemConfig, CalibrationPoint, Measurement
 from app import db
 from app.regulation import Regulator
 from app.calibration import CalibrationRegistry
+from app.hardware import gfci_driver
 from flask_login import login_required
 import os
 from datetime import datetime, timedelta
@@ -35,6 +36,16 @@ def get_status():
     for relay_id in RelayId:
         relays[relay_id.name] = HardwareState.get_relay_state(relay_id)
     
+    gfci_status = {
+        'ping': False,
+        'tripped': [False, False],
+        'enabled': DynConfig.gfci_enabled,
+        'threshold': DynConfig.gfci_trip_threshold_ma
+    }
+    if gfci_driver:
+        gfci_status['ping'] = gfci_driver.ping()
+        gfci_status['tripped'] = [gfci_driver.is_tripped(1), gfci_driver.is_tripped(2)]
+
     return jsonify({
         'sensors': readings,
         'relays': relays,
@@ -42,7 +53,8 @@ def get_status():
         'manual_mode': DynConfig.manual_mode,
         'circuit_enables': DynConfig.circuit_states,
         'watchdog_tripped': WatchdogTrigger.is_tripped(),
-        'regulator_status': Regulator().get_status_str()
+        'regulator_status': Regulator().get_status_str(),
+        'gfci': gfci_status
     })
 
 @bp.route('/watchdog', methods=['GET'])
@@ -177,6 +189,24 @@ def set_relay_state():
     HardwareState.set_relay(relay_id, state)
     return jsonify({'success': True})
 
+@bp.route('/gfci/trip/<int:circuit>', methods=['POST'])
+@login_required
+def trip_gfci(circuit):
+    """ Manually trip a GFCI circuit """
+    if gfci_driver:
+        gfci_driver.set_tripped(circuit)
+        return jsonify({'success': True})
+    return jsonify({'error': 'No GFCI driver'}), 500
+
+@bp.route('/gfci/reset/<int:circuit>', methods=['POST'])
+@login_required
+def reset_gfci(circuit):
+    """ Manually reset a GFCI circuit """
+    if gfci_driver:
+        gfci_driver.reset_tripped(circuit)
+        return jsonify({'success': True})
+    return jsonify({'error': 'No GFCI driver'}), 500
+
 
 @bp.route('/config', methods=['GET'])
 @login_required
@@ -239,6 +269,10 @@ def update_config():
     # Force the configuration in memory to pull the latest version
     DynConfig.reload()
     
+    # If GFCI settings changed, sync them
+    if key.startswith('gfci_'):
+        HardwareState.sync_gfci_settings()
+
     return jsonify({'success': True})
 
 @bp.route('/logs', methods=['GET'])
