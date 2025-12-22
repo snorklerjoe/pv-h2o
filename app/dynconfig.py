@@ -145,6 +145,7 @@ class DynConfig:
 
     # Regulation
     manual_mode = conf_property_evald("manual_mode", "False", "Enable manual mode to override automatic regulation", ConfigCategory.REGULATION, lambda x: isinstance(x, bool), "boolean")
+    regulator_night_override = conf_property_evald("regulator_night_override", "False", "Keep regulator running at night", ConfigCategory.REGULATION, lambda x: isinstance(x, bool), "boolean")
     target_temp_tank1_f = conf_property_evald("target_temp_tank1_f", "140.0", "Target temperature for Tank 1 (F)", ConfigCategory.REGULATION, lambda x: isinstance(x, (int, float)) and 0 <= x <= 212, "number")
     target_temp_tank2_f = conf_property_evald("target_temp_tank2_f", "140.0", "Target temperature for Tank 2 (F)", ConfigCategory.REGULATION, lambda x: isinstance(x, (int, float)) and 0 <= x <= 212, "number")
     temp_hysteresis = conf_property_evald("temp_hysteresis", "2.0", "Temperature hysteresis (F)", ConfigCategory.REGULATION, lambda x: isinstance(x, (int, float)) and x > 0, "number")

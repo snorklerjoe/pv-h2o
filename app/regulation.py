@@ -66,7 +66,7 @@ class Regulator:
             return
 
         # Handle things if it is night
-        if not self._is_light_out():
+        if not self._is_light_out() and not DynConfig.regulator_night_override:
             self._status_repr = "It's dark out => Circuits are off."
             # Turn everything off, it's night time
             for relay in RelayId:

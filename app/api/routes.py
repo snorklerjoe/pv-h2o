@@ -38,7 +38,7 @@ def get_status():
     return jsonify({
         'sensors': readings,
         'relays': relays,
-        'is_day': not Regulator()._is_light_out(), # _is_light_out returns True if it is night
+        'is_day': Regulator()._is_light_out(), # _is_light_out returns True if it is day
         'manual_mode': DynConfig.manual_mode,
         'circuit_enables': DynConfig.circuit_states,
         'watchdog_tripped': WatchdogTrigger.is_tripped(),
@@ -349,7 +349,14 @@ def get_history():
 
     data = {
         'timestamps': timestamps,
-        'sensors': {}
+        'sensors': {},
+        'relays': {
+            'inside_1': [m.relay_inside_1 for m in results],
+            'outside_1': [m.relay_outside_1 for m in results],
+            'inside_2': [m.relay_inside_2 for m in results],
+            'outside_2': [m.relay_outside_2 for m in results],
+        },
+        'sensor_names': {s.name: s.readable_name for s in SensorId}
     }
 
     sensor_list = sensors_str.split(',') if sensors_str else [s.name for s in SensorId]
