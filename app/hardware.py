@@ -2,6 +2,7 @@
 
 from drivers.base_driver import BaseSensorDriver, BaseOutputDriver, BaseLCDDriver, BaseGFCIDriver, HardwareDriver
 from drivers.dummy_driver import DummySensorDriver, DummyOutputDriver, DummyLCDDriver, DummyGFCIDriver
+import drivers.real_drivers # Register real drivers
 from typing import Type
 from app.dynconfig import DynConfig, MalformedConfigException
 from app.hardware_constants import SensorId, RelayId
