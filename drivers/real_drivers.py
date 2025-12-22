@@ -286,6 +286,7 @@ class I2CLCDDriver(BaseLCDDriver):
         self.address = int(self.params.get('address', 0x27))
         self.bus_num = int(self.params.get('bus_num', 1))
         self.bus = None
+        self._backlight_val = LCD_BACKLIGHT
 
     def hardware_init(self):
         if smbus:
@@ -302,14 +303,14 @@ class I2CLCDDriver(BaseLCDDriver):
 
     def _lcd_strobe(self, data):
         # self.lcd_device.write_cmd(data | En | LCD_BACKLIGHT)
-        self._write_cmd(data | En | LCD_BACKLIGHT)
+        self._write_cmd(data | En | self._backlight_val)
         time.sleep(.0005)
         # self.lcd_device.write_cmd(((data & ~En) | LCD_BACKLIGHT))
-        self._write_cmd(((data & ~En) | LCD_BACKLIGHT))
+        self._write_cmd(((data & ~En) | self._backlight_val))
         time.sleep(.0001)
 
     def _lcd_write_four_bits(self, data):
-        self._write_cmd(data | LCD_BACKLIGHT)
+        self._write_cmd(data | self._backlight_val)
         self._lcd_strobe(data)
 
     def _lcd_write(self, cmd, mode=0):
@@ -362,8 +363,6 @@ class I2CLCDDriver(BaseLCDDriver):
 
     def set_backlight(self, state):
         if not self.bus: return
-        if state:
-            self._write_cmd(LCD_BACKLIGHT)
-        else:
-            self._write_cmd(LCD_NOBACKLIGHT)
+        self._backlight_val = LCD_BACKLIGHT if state else LCD_NOBACKLIGHT
+        self._write_cmd(self._backlight_val)
 
