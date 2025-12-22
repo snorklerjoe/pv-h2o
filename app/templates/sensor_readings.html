@@ -2,6 +2,7 @@
 
 {% block content %}
 <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/chartjs-adapter-date-fns/dist/chartjs-adapter-date-fns.bundle.min.js"></script>
 <div class="row">
     <div class="col-md-12">
         <div class="d-flex justify-content-between align-items-center mb-3">
@@ -75,29 +76,67 @@
         fetch(`/api/history?start=${start.toISOString()}&end=${end.toISOString()}`)
             .then(response => response.json())
             .then(data => {
-                const timestamps = data.timestamps.map(t => new Date(t).toLocaleTimeString());
+                // We use the raw ISO timestamps for the x-axis
+                const timestamps = data.timestamps; 
                 
                 for (const [sensor, values] of Object.entries(data.sensors)) {
                     const ctx = document.getElementById(`chart-${sensor}`);
                     if (!ctx) continue;
                     
+                    // Create data points {x: timestamp, y: value}
+                    const dataPoints = timestamps.map((t, i) => ({
+                        x: t,
+                        y: values[i]
+                    }));
+
                     if (charts[sensor]) {
-                        charts[sensor].data.labels = timestamps;
-                        charts[sensor].data.datasets[0].data = values;
+                        charts[sensor].data.datasets[0].data = dataPoints;
+                        charts[sensor].options.scales.x.min = start.toISOString();
+                        charts[sensor].options.scales.x.max = end.toISOString();
                         charts[sensor].update();
                     } else {
                         charts[sensor] = new Chart(ctx, {
                             type: 'line',
                             data: {
-                                labels: timestamps,
                                 datasets: [{
                                     label: sensor,
-                                    data: values,
+                                    data: dataPoints,
                                     borderColor: 'rgb(75, 192, 192)',
                                     tension: 0.1,
                                     pointRadius: 0
                                 }]
                             },
+                            options: {
+                                responsive: true,
+                                maintainAspectRatio: false,
+                                scales: {
+                                    x: {
+                                        type: 'time',
+                                        time: {
+                                            unit: minutes <= 60 ? 'minute' : 'hour',
+                                            displayFormats: {
+                                                minute: 'HH:mm',
+                                                hour: 'MM/dd HH:mm'
+                                            }
+                                        },
+                                        min: start.toISOString(),
+                                        max: end.toISOString()
+                                    },
+                                    y: {
+                                        beginAtZero: false
+                                    }
+                                },
+                                plugins: {
+                                    legend: {
+                                        display: false
+                                    }
+                                }
+                            }
+                        });
+                    }
+                }
+            });
+    }
                             options: {
                                 responsive: true,
                                 maintainAspectRatio: false,

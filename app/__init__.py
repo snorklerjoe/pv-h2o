@@ -111,7 +111,7 @@ def initialize_backend(flask_app):
         was_not_tripped: bool = not WatchdogTrigger.is_tripped()
         for check in list(WatchdogTrigger.all_triggers()):
             check.run_check()
-        if was_not_tripped and WatchdogTrigger.is_tripped() and DynConfig.notify_email_enabled():  # Send a notification if something just happened
+        if was_not_tripped and WatchdogTrigger.is_tripped() and DynConfig.notify_email_enabled:  # Send a notification if something just happened
             notifier.send_alert(
                 "Solar Watchdog Tripped",
                 WatchdogTrigger.gen_notify_repr()

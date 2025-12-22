@@ -100,8 +100,24 @@ def create_user():
             db.session.add(user)
             db.session.commit()
             flash('User created successfully')
-            return redirect(url_for('main.index'))
+            return redirect(url_for('main.create_user')) # Redirect back to create_user to see the list
             
-    return render_template('create_user.html', title='Create User')
+    users = User.query.all()
+    return render_template('create_user.html', title='Create User', users=users)
+
+@bp.route('/users/delete/<int:user_id>', methods=['POST'])
+@login_required
+def delete_user(user_id):
+    user = User.query.get(user_id)
+    if user:
+        if user.id == current_user.id:
+            flash('Cannot delete yourself')
+        else:
+            db.session.delete(user)
+            db.session.commit()
+            flash('User deleted successfully')
+    else:
+        flash('User not found')
+    return redirect(url_for('main.create_user'))
 
 

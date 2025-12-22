@@ -110,12 +110,6 @@ def set_circuit_enable():
         current_states[circuit_idx] = enabled
         
         # Update DB
-        # We need to update the SystemConfig entry for 'circuit_states'
-        # DynConfig.circuit_states is a property, setting it might not update DB automatically unless we implemented a setter.
-        # The current implementation of DynConfig uses classproperty which is usually read-only or needs a setter.
-        # Let's check DynConfig implementation. It seems it just reads from _confDict.
-        # So we need to update SystemConfig model and then reload DynConfig.
-        
         conf = SystemConfig.query.filter_by(key='circuit_states').first()
         if conf:
             conf.value = str(current_states)
@@ -127,18 +121,49 @@ def set_circuit_enable():
     else:
         return jsonify({'error': 'Invalid circuit index'}), 400
 
+@bp.route('/relays', methods=['POST'])
+@login_required
+def set_relay_state():
+    """ Manually set a relay state (only works in manual mode) """
+    if not DynConfig.manual_mode:
+        return jsonify({'error': 'System is not in manual mode'}), 403
+
+    data = request.get_json()
+    relay_name = data.get('relay')
+    state = data.get('state') # boolean
+
+    if not relay_name or state is None:
+        return jsonify({'error': 'Missing parameters'}), 400
+
+    try:
+        relay_id = RelayId[relay_name]
+    except KeyError:
+        return jsonify({'error': 'Invalid relay name'}), 400
+
+    HardwareState.set_relay(relay_id, state)
+    return jsonify({'success': True})
+
+
 @bp.route('/config', methods=['GET'])
 @login_required
 def get_config():
     """ Get all dynamic config values and their definitions """
     definitions = DynConfig.get_definitions()
+    raw_config = DynConfig.get_raw_config()
     config_values = {}
     
     # We can iterate over definitions to get keys
     for key, meta in definitions.items():
         # Get current value
-        # We can access it via getattr(DynConfig, key)
-        val = getattr(DynConfig, key)
+        # If it's an eval'd property, we want the RAW string from the DB/Config for editing
+        # Otherwise we get the evaluated object (e.g. dict) which JSON.stringify converts to JSON
+        
+        if meta['is_eval']:
+            # Try to get raw string from _confDict
+            val = raw_config.get(key, meta['default'])
+        else:
+            val = getattr(DynConfig, key)
+
         config_values[key] = {
             'value': val,
             'default': meta['default'],

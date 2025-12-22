@@ -1,6 +1,106 @@
 {% extends "base.html" %}
 
 {% block content %}
+<style>
+    /* Vertical Breaker Switch Styles */
+    .breaker-container {
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        margin: 0 10px;
+    }
+    
+    .breaker-switch {
+        position: relative;
+        display: inline-block;
+        width: 30px;
+        height: 60px;
+    }
+
+    .breaker-switch input { 
+        opacity: 0;
+        width: 0;
+        height: 0;
+    }
+
+    .slider {
+        position: absolute;
+        cursor: pointer;
+        top: 0;
+        left: 0;
+        right: 0;
+        bottom: 0;
+        background-color: #444;
+        transition: .2s;
+        border-radius: 4px;
+        border: 2px solid #222;
+        box-shadow: inset 0 0 5px rgba(0,0,0,0.5);
+    }
+
+    .slider:before {
+        position: absolute;
+        content: "";
+        height: 26px;
+        width: 24px;
+        left: 1px;
+        bottom: 2px;
+        background-color: #222;
+        transition: .2s;
+        border-radius: 2px;
+        box-shadow: inset 0 1px 0 rgba(255,255,255,0.1), 0 2px 4px rgba(0,0,0,0.5);
+        border: 1px solid #000;
+    }
+
+    input:checked + .slider {
+        background-color: #222;
+    }
+
+    input:checked + .slider:before {
+        transform: translateY(-28px);
+        background-color: #1fba65; /* Breaker "ON" color */
+        border-bottom: 2px solid #1d6e00;
+    }
+    
+    /* Red indicator when ON */
+    input:checked + .slider {
+        box-shadow: inset 0 0 10px rgba(255, 0, 0, 0.2);
+    }
+
+    /* Label text inside */
+    .slider:after {
+        content: "OFF";
+        position: absolute;
+        top: 10px;
+        left: 50%;
+        transform: translateX(-50%);
+        font-size: 10px;
+        font-weight: bold;
+        color: #888;
+        text-shadow: 0 1px 0 rgba(255,255,255,0.1);
+    }
+
+    input:checked + .slider:after {
+        content: "ON";
+        top: auto;
+        bottom: 10px;
+        color: #ff8a80;
+        text-shadow: 0 0 5px rgba(255, 0, 0, 0.5);
+    }
+    
+    .breaker-switch.disabled {
+        opacity: 0.6;
+        pointer-events: none;
+    }
+
+    .breaker-label {
+        text-align: center;
+        font-size: 0.75rem;
+        margin-top: 5px;
+        font-weight: bold;
+        color: var(--bs-body-color);
+    }
+</style>
+
 <div class="row mb-4">
     <div class="col-md-12">
         <h1>Dashboard</h1>
@@ -18,31 +118,52 @@
 <div class="row">
     <!-- Circuit 1 -->
     <div class="col-md-6">
-        <div class="card mb-4">
+        <div class="card mb-4" id="card-circ1">
             <div class="card-header d-flex justify-content-between align-items-center">
                 <h5 class="mb-0">Circuit 1 (Tank 1)</h5>
                 <span id="relay-state-circ1" class="badge rounded-pill bg-secondary">OFF</span>
             </div>
             <div class="card-body">
-                <div class="d-grid gap-2">
+                <div class="d-grid gap-2 mb-3">
                     {% if current_user.is_authenticated %}
-                    <button id="btn-circ1" class="btn btn-lg btn-outline-primary" onclick="toggleCircuit(0)">
+                    <button id="btn-circ1" class="btn btn-sm btn-outline-primary" onclick="toggleCircuit(0)">
                         Enable Circuit 1
                     </button>
                     {% else %}
                     <div class="alert alert-secondary text-center mb-0">Login to control</div>
                     {% endif %}
                 </div>
+
+                <div class="d-flex justify-content-center mb-3 bg-dark bg-opacity-10 p-2 rounded">
+                    <div class="breaker-container">
+                        <label class="breaker-switch" id="lbl-sw-gfci1">
+                            <input type="checkbox" id="sw-gfci1" onchange="toggleRelay('gfci1', this.checked)">
+                            <span class="slider"></span>
+                        </label>
+                        <div class="breaker-label">GFCI</div>
+                    </div>
+                    <div class="breaker-container">
+                        <label class="breaker-switch" id="lbl-sw-circ1">
+                            <input type="checkbox" id="sw-circ1" onchange="toggleRelay('circ1', this.checked)">
+                            <span class="slider"></span>
+                        </label>
+                        <div class="breaker-label">Inside</div>
+                    </div>
+                </div>
+
                 <hr>
                 <div class="row">
-                    <div class="col-6">
+                    <div class="col-6 mb-2">
                         <strong>Temp:</strong> <span id="val-t1">--</span> &deg;F
+                    </div>
+                    <div class="col-6 mb-2">
+                        <strong>Power:</strong> <span id="val-p1" class="text-warning fw-bold">--</span> W
                     </div>
                     <div class="col-6">
                         <strong>Current:</strong> <span id="val-i1">--</span> A
                     </div>
-                    <div class="col-md-4">
-                        <strong>Voltage 1 (V1):</strong> <span id="val-v1">--</span> V
+                    <div class="col-6">
+                        <strong>Voltage:</strong> <span id="val-v1">--</span> V
                     </div>
                 </div>
             </div>
@@ -51,31 +172,52 @@
 
     <!-- Circuit 2 -->
     <div class="col-md-6">
-        <div class="card mb-4">
+        <div class="card mb-4" id="card-circ2">
             <div class="card-header d-flex justify-content-between align-items-center">
                 <h5 class="mb-0">Circuit 2 (Tank 2)</h5>
                 <span id="relay-state-circ2" class="badge rounded-pill bg-secondary">OFF</span>
             </div>
             <div class="card-body">
-                <div class="d-grid gap-2">
+                <div class="d-grid gap-2 mb-3">
                     {% if current_user.is_authenticated %}
-                    <button id="btn-circ2" class="btn btn-lg btn-outline-primary" onclick="toggleCircuit(1)">
+                    <button id="btn-circ2" class="btn btn-sm btn-outline-primary" onclick="toggleCircuit(1)">
                         Enable Circuit 2
                     </button>
                     {% else %}
                     <div class="alert alert-secondary text-center mb-0">Login to control</div>
                     {% endif %}
                 </div>
+
+                <div class="d-flex justify-content-center mb-3 bg-dark bg-opacity-10 p-2 rounded">
+                    <div class="breaker-container">
+                        <label class="breaker-switch" id="lbl-sw-gfci2">
+                            <input type="checkbox" id="sw-gfci2" onchange="toggleRelay('gfci2', this.checked)">
+                            <span class="slider"></span>
+                        </label>
+                        <div class="breaker-label">GFCI</div>
+                    </div>
+                    <div class="breaker-container">
+                        <label class="breaker-switch" id="lbl-sw-circ2">
+                            <input type="checkbox" id="sw-circ2" onchange="toggleRelay('circ2', this.checked)">
+                            <span class="slider"></span>
+                        </label>
+                        <div class="breaker-label">Inside</div>
+                    </div>
+                </div>
+
                 <hr>
                 <div class="row">
-                    <div class="col-6">
+                    <div class="col-6 mb-2">
                         <strong>Temp:</strong> <span id="val-t2">--</span> &deg;F
+                    </div>
+                    <div class="col-6 mb-2">
+                        <strong>Power:</strong> <span id="val-p2" class="text-warning fw-bold">--</span> W
                     </div>
                     <div class="col-6">
                         <strong>Current:</strong> <span id="val-i2">--</span> A
                     </div>
-                    <div class="col-md-4">
-                        <strong>Voltage 2 (V2):</strong> <span id="val-v2">--</span> V
+                    <div class="col-6">
+                        <strong>Voltage:</strong> <span id="val-v2">--</span> V
                     </div>
                 </div>
             </div>
@@ -100,11 +242,14 @@
 
 <script>
     let circuitStates = [false, false];
+    let manualMode = false;
 
     function updateDashboard() {
         fetch('/api/status')
             .then(response => response.json())
             .then(data => {
+                manualMode = data.manual_mode;
+
                 // Update Day/Night
                 const dn = document.getElementById('day-night-indicator');
                 if (data.is_day) {
@@ -140,10 +285,29 @@
                         el.textContent = val ? val.calibrated.toFixed(1) : '--';
                     }
                 }
+                
+                // Calculate Power
+                const v1 = data.sensors.v1 ? data.sensors.v1.calibrated : 0;
+                const i1 = data.sensors.i1 ? data.sensors.i1.calibrated : 0;
+                const p1 = v1 * i1;
+                const elP1 = document.getElementById('val-p1');
+                if (elP1) elP1.textContent = p1.toFixed(1);
 
-                // Update Relays (Actual State)
-                updateRelayBadge('circ1', data.relays.circ1);
-                updateRelayBadge('circ2', data.relays.circ2);
+                const v2 = data.sensors.v2 ? data.sensors.v2.calibrated : 0;
+                const i2 = data.sensors.i2 ? data.sensors.i2.calibrated : 0;
+                const p2 = v2 * i2;
+                const elP2 = document.getElementById('val-p2');
+                if (elP2) elP2.textContent = p2.toFixed(1);
+
+                // Update Relays (Actual State) & Switches
+                updateRelaySwitch('circ1', data.relays.circ1);
+                updateRelaySwitch('gfci1', data.relays.gfci1);
+                updateRelaySwitch('circ2', data.relays.circ2);
+                updateRelaySwitch('gfci2', data.relays.gfci2);
+
+                // Update Circuit Badges (Only ON if BOTH relays are ON)
+                updateCircuitBadge('circ1', data.relays.circ1 && data.relays.gfci1);
+                updateCircuitBadge('circ2', data.relays.circ2 && data.relays.gfci2);
 
                 // Update Circuit Enables (Switches)
                 circuitStates = data.circuit_enables;
@@ -153,16 +317,44 @@
             .catch(err => console.error('Error fetching status:', err));
     }
 
-    function updateRelayBadge(id, state) {
+    function updateRelaySwitch(id, state) {
+        const sw = document.getElementById(`sw-${id}`);
+        if (sw) {
+            sw.checked = state;
+            
+            // Disable if not in manual mode
+            if (!manualMode) {
+                sw.disabled = true;
+                sw.parentElement.classList.add('disabled');
+            } else {
+                sw.disabled = false;
+                sw.parentElement.classList.remove('disabled');
+            }
+        }
+    }
+
+    function updateCircuitBadge(id, state) {
         const el = document.getElementById(`relay-state-${id}`);
+        const card = document.getElementById(`card-${id}`);
+
         if (state) {
             el.textContent = "ON";
             el.className = "badge rounded-pill bg-success";
             el.style.boxShadow = "0 0 10px #28a745"; // Fancy light effect
+            
+            if (card) {
+                card.classList.remove('bg-danger', 'bg-opacity-10', 'border-danger');
+                card.classList.add('bg-success', 'bg-opacity-10', 'border-success');
+            }
         } else {
             el.textContent = "OFF";
             el.className = "badge rounded-pill bg-secondary";
             el.style.boxShadow = "none";
+
+            if (card) {
+                card.classList.remove('bg-success', 'bg-opacity-10', 'border-success');
+                card.classList.add('bg-danger', 'bg-opacity-10', 'border-danger');
+            }
         }
     }
 
@@ -171,10 +363,10 @@
         if (!btn) return;
         if (enabled) {
             btn.textContent = `Disable Circuit ${idx+1}`;
-            btn.className = "btn btn-lg btn-success";
+            btn.className = "btn btn-sm btn-success";
         } else {
             btn.textContent = `Enable Circuit ${idx+1}`;
-            btn.className = "btn btn-lg btn-outline-secondary";
+            btn.className = "btn btn-sm btn-outline-secondary";
         }
     }
 
@@ -196,6 +388,31 @@
                 updateDashboard(); // Refresh immediately
             } else {
                 alert('Failed to toggle circuit');
+            }
+        });
+    }
+    
+    function toggleRelay(relayName, newState) {
+        if (!manualMode) return; // Should be disabled anyway
+        
+        fetch('/api/relays', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+            },
+            body: JSON.stringify({
+                relay: relayName,
+                state: newState
+            }),
+        })
+        .then(response => response.json())
+        .then(data => {
+            if (data.success) {
+                // Good
+            } else {
+                alert('Failed to toggle relay: ' + (data.error || 'Unknown error'));
+                // Revert switch state
+                document.getElementById(`sw-${relayName}`).checked = !newState;
             }
         });
     }

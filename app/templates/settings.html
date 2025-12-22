@@ -84,8 +84,10 @@
                         input.id = `input-${key}`;
                         
                         // Handle array/eval types
+                        // The API now returns the raw string for eval types, so we don't need to stringify objects
                         let displayValue = item.value;
-                        if (Array.isArray(displayValue) || typeof displayValue === 'object') {
+                        if (typeof displayValue === 'object' && displayValue !== null) {
+                             // Fallback just in case
                             displayValue = JSON.stringify(displayValue);
                         }
                         input.value = displayValue;

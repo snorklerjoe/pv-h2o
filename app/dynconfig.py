@@ -97,6 +97,11 @@ class DynConfig:
         return cls._definitions
 
     @classmethod
+    def get_raw_config(cls):
+        """ Returns the raw configuration dictionary (strings) as stored in DB """
+        return cls._confDict
+
+    @classmethod
     def fetch_config(cls):
         # Grab latest config dictionary from the database
         # This requires an active application context
