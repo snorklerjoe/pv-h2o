@@ -21,6 +21,18 @@
                 </form>
             </div>
         </div>
+        <div class="card mt-4">
+            <div class="card-header">
+                Current Light Window ({{ timezone }})
+            </div>
+            <div class="card-body">
+                <p>Based on current location and offsets:</p>
+                <ul>
+                    <li><strong>Start (Sunrise + Offset):</strong> {{ window[0].strftime('%Y-%m-%d %H:%M:%S') }}</li>
+                    <li><strong>End (Sunset - Offset):</strong> {{ window[1].strftime('%Y-%m-%d %H:%M:%S') }}</li>
+                </ul>
+            </div>
+        </div>
     </div>
 </div>
 

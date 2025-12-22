@@ -13,5 +13,6 @@ python-dotenv
 tzdata
 loguru
 pytest
-gitpythonsmbus2
+gitpython
+smbus2
 RPi.GPIO

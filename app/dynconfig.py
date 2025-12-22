@@ -157,8 +157,8 @@ class DynConfig:
 
     # Location & Day/Night
     location_name = conf_property("location_name", "Concord", "Name of the location", ConfigCategory.LOCATION, lambda x: len(x) > 0, "text")
-    location_lat = conf_property_evald("location_lat", "0.0", "Latitude", ConfigCategory.LOCATION, lambda x: isinstance(x, (int, float)) and -90 <= x <= 90, "number")
-    location_long = conf_property_evald("location_long", "0.0", "Longitude", ConfigCategory.LOCATION, lambda x: isinstance(x, (int, float)) and -180 <= x <= 180, "number")
+    location_lat = conf_property_evald("location_lat", "0.0", "Latitude (North is positive)", ConfigCategory.LOCATION, lambda x: isinstance(x, (int, float)) and -90 <= x <= 90, "number")
+    location_long = conf_property_evald("location_long", "0.0", "Longitude (West is negative)", ConfigCategory.LOCATION, lambda x: isinstance(x, (int, float)) and -180 <= x <= 180, "number")
     sunrise_offset_minutes = conf_property_evald("sunrise_offset_minutes", "30", "Minutes after sunrise to enable circuits", ConfigCategory.LOCATION, lambda x: isinstance(x, int), "number")
     sunset_offset_minutes = conf_property_evald("sunset_offset_minutes", "30", "Minutes before sunset to disable circuits", ConfigCategory.LOCATION, lambda x: isinstance(x, int), "number")
 

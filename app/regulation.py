@@ -1,9 +1,9 @@
 """ Contains code pertaining to overall maintenance of system homeostasis. :) """
 
 from .hardwarestate import HardwareState
-from .sunrise import get_sun_rise_set_time_today
+from .sunrise import light_window
 from .dynconfig import DynConfig
-from datetime import timedelta, datetime
+from datetime import datetime
 from .hardware_constants import RelayId, SensorId
 from threading import Thread
 from time import sleep
@@ -49,10 +49,7 @@ class Regulator:
         self._thread.start()
 
     def _is_light_out(self):  # TODO: Cache sunrise / sunset window for the whole day or for the hour or something
-        sunrise, sunset = get_sun_rise_set_time_today()
-        rise_delta = timedelta(minutes=DynConfig.sunrise_offset_minutes)
-        set_delta = timedelta(minutes=DynConfig.sunset_offset_minutes)
-        window = (sunrise + rise_delta, sunset - set_delta)
+        window = light_window()
         return window[0] < datetime.now(Config.TIMEZONE) < window[1]
 
     def get_status_str(self) -> str:

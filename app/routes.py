@@ -4,6 +4,7 @@ from app import db
 from app.models import User
 from app.forms import LoginForm
 from app.dynconfig import DynConfig, ConfigCategory
+from app.sunrise import light_window
 from loguru import logger
 
 bp = Blueprint('main', __name__)
@@ -42,10 +43,13 @@ def logout():
     logout_user()
     return redirect(url_for('main.index'))
 
+from app.config import Config
+
 @bp.route('/settings')
 @login_required
 def settings():
-    return render_template('settings.html', title='Settings', categories=[c.value for c in ConfigCategory])
+    window = light_window()
+    return render_template('settings.html', title='Settings', categories=[c.value for c in ConfigCategory], window=window, timezone=Config.TIMEZONE_NAME)
 
 @bp.route('/sensors')
 @login_required
