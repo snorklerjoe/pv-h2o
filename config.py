@@ -8,10 +8,15 @@ _commit_sha = _this_git_repo.head.object.hexsha
 class Config:
     SECRET_KEY = os.environ.get('SECRET_KEY') or 'you-will-never-guess'
     
+    # Paths
+    # Allow overriding paths for database and logs (e.g. for external storage)
+    DB_FILE_PATH = os.environ.get('DB_FILE_PATH') or os.path.join(os.path.abspath(os.path.dirname(__file__)), 'app.db')
+    LOG_FILE_PATH = os.environ.get('LOG_FILE_PATH') or os.path.join(os.path.abspath(os.path.dirname(__file__)), 'app.log')
+
     # Database configuration
     # Use SQLite by default for development, but allow override for MySQL
     SQLALCHEMY_DATABASE_URI = os.environ.get('DATABASE_URL') or \
-        'sqlite:///' + os.path.join(os.path.abspath(os.path.dirname(__file__)), 'app.db')
+        'sqlite:///' + DB_FILE_PATH
     SQLALCHEMY_TRACK_MODIFICATIONS = False
     
     TIMEZONE_NAME = "America/New_York"

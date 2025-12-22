@@ -319,7 +319,7 @@ def get_logs():
     target_levels = levels[level_idx:]
     
     try:
-        with open("app.log", "r") as f:
+        with open(Config.LOG_FILE_PATH, "r") as f:
             lines = f.readlines()
             
             filtered_lines = []

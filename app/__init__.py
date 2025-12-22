@@ -22,7 +22,7 @@ from sqlalchemy import event
 import traceback
 
 # Configure logger
-logger.add("app.log", rotation="1 MB", retention="10 days", colorize=True)
+logger.add(Config.LOG_FILE_PATH, rotation="1 MB", retention="10 days", colorize=True)
 
 db = SQLAlchemy()
 scheduler = APScheduler()
