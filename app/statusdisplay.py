@@ -15,8 +15,13 @@ from .dynconfig import DynConfig
 from app.config import Config
 from loguru import logger
 
+
+_init_time: datetime
+
 def splash_screen() -> None:
     """ This is run right after hardware initialization until all systems operational"""
+    global _init_time
+    _init_time = datetime.now(Config.TIMEZONE)
     if not hardware.lcd_driver: return
     hardware.lcd_driver.clear()
     hardware.lcd_driver.set_backlight(True)
@@ -25,8 +30,11 @@ def splash_screen() -> None:
 
 _status_display_thread: Thread | None = None
 
+
 def _status_display() -> NoReturn:
     """ A forever loop that updates the status lcd with relevant info """
+    global _init_time
+
     sleep(5)
     if not hardware.lcd_driver:
         return
@@ -40,8 +48,8 @@ def _status_display() -> NoReturn:
             hardware.lcd_driver.clear()
             
             # Line 0: Title & Time
-            now = datetime.now(Config.TIMEZONE)
-            time_str = now.strftime("%H:%M")
+            uptime = datetime.now(Config.TIMEZONE) - _init_time
+            time_str = f"{int(uptime.total_seconds() // 60)}:{uptime.seconds}"
             hardware.lcd_driver.write_line(0, f"PV-H2O Sys    {time_str}")
             
             # Line 1: Regulator Mode & Light
