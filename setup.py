@@ -24,5 +24,6 @@ setup(
         'smbus2',
         'RPi.GPIO',
         'gunicorn',
+        'pandas'
     ],
 )
