@@ -25,28 +25,34 @@ class Regulator:
     def __init__(self):
         if not Regulator._initialized:
             self._status_repr = "~ Regulator hook not yet executed. ~"
-            self._thread: Thread | None = None
             Regulator._initialized = True
 
-    def start_regulation(self, app):
-        def loop():
-            with app.app_context():
-                from loguru import logger
-                logger.info("Starting regulation loop")
-                regulator = Regulator()
-                sleep(DynConfig.polling_rate_seconds * 1.5)
-                while True:
-                    try:
-                        logger.debug("Running regulator hook...")
-                        regulator.hook()
-                        logger.debug("Ran regulator hook.")
-                    except Exception as e:
-                        logger.exception("Error in regulation loop")
-                    sleep(DynConfig.polling_rate_seconds)
+    def schedule_regulation(self, app):
+        from app import scheduler
+        from app.utils import run_with_timeout_and_kill
+
+        def job():
+            def task():
+                with app.app_context():
+                    logger.debug("Running regulation hook.")
+                    self.hook()
+
+            run_with_timeout_and_kill(
+                task,
+                timeout=DynConfig.polling_rate_seconds
+            )
         
-        logger.info("Creating regulation thread.")
-        self._thread = Thread(target=loop, name="Regulation Loop", daemon=True)
-        self._thread.start()
+        if scheduler.get_job('regulation_loop'):
+            scheduler.remove_job('regulation_loop')
+
+        scheduler.add_job(
+            id='regulation_loop',
+            func=job,
+            trigger='interval',
+            seconds=DynConfig.polling_rate_seconds,
+            max_instances=1,
+            coalesce=True
+        )
 
     def _is_light_out(self):  # TODO: Cache sunrise / sunset window for the whole day or for the hour or something
         window = light_window()
@@ -94,7 +100,6 @@ class Regulator:
 
         self._status_repr1 += "\n"
 
-
         # Circuit 2 regulation
         if DynConfig.circuit_states[1]:  # If circuit is "turned on"
             # Check temperature
@@ -117,4 +122,4 @@ class Regulator:
             self._status_repr1 += "C2:  Disabled => Circuit OFF."
             HardwareState.set_relay(RelayId.circ2, False) 
 
-        self._status_repr = self._status_repr1
+        self._status_repr = self._status_repr1 + f"\n\nLast updated {datetime.now(Config.TIMEZONE).isoformat()}"

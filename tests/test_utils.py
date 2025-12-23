@@ -1,9 +1,38 @@
 import pytest
 import threading
 import time
-from app.utils import synchronized, classproperty
+from app.utils import synchronized, classproperty, run_with_timeout_and_kill
 
 class TestUtils:
+    def test_run_with_timeout_and_kill_success(self):
+        result = {"completed": False}
+        def task():
+            time.sleep(0.1)
+            result["completed"] = True
+        
+        run_with_timeout_and_kill(task, timeout=1.0)
+        assert result["completed"] is True
+
+    def test_run_with_timeout_and_kill_timeout(self):
+        result = {"completed": False}
+        def task():
+            try:
+                time.sleep(2.0)
+                result["completed"] = True
+            except Exception:
+                # If the thread is killed, we might catch the exception here if we were catching BaseException
+                # But we are just checking if it finished
+                pass
+        
+        start_time = time.time()
+        run_with_timeout_and_kill(task, timeout=0.5)
+        duration = time.time() - start_time
+        
+        # It should return roughly around the timeout
+        assert duration < 1.5 
+        # It should NOT have completed
+        assert result["completed"] is False
+
     def test_synchronized(self):
         class Counter:
             def __init__(self):

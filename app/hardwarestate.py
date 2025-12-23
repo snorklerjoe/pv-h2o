@@ -22,8 +22,6 @@ class HardwareState:
     
     _instance = None
     _instancelock = threading.RLock()
-    _pollingthread = None
-    _running = True
 
     cur_sensor_values: dict[SensorId, Optional[SensorReading]] = dict(
         (key, None) for key in SensorId  # Fill with dict of None for each sensor we have
@@ -95,19 +93,32 @@ class HardwareState:
                 db.session.rollback()
 
     @staticmethod
-    def start_sensorpolling(flask_app):
-        """ Starts a thread to continuously poll the sensor data at a rate defined in dynconf """
-        with HardwareState._instancelock:
-            if HardwareState._pollingthread is not None and HardwareState._pollingthread.is_alive():
-                return
+    def schedule_sensor_polling(flask_app):
+        """ Schedules the sensor polling job """
+        from app import scheduler
+        from app.utils import run_with_timeout_and_kill
+        
+        def job():
+            def task():
+                with flask_app.app_context():
+                    HardwareState.poll_sensors()
 
-            def continuouspoll():
-                while HardwareState._running:
-                    with flask_app.app_context():
-                        HardwareState.poll_sensors()
-                    sleep(DynConfig.polling_rate_seconds)
-            HardwareState._pollingthread = Thread(target=continuouspoll, name="Sensor polling", daemon=True)
-            HardwareState._pollingthread.start()
+            run_with_timeout_and_kill(
+                task, 
+                timeout=DynConfig.polling_rate_seconds
+            )
+
+        if scheduler.get_job('sensor_polling'):
+            scheduler.remove_job('sensor_polling')
+
+        scheduler.add_job(
+            id='sensor_polling',
+            func=job,
+            trigger='interval',
+            seconds=DynConfig.polling_rate_seconds,
+            max_instances=1,
+            coalesce=True
+        )
 
     @staticmethod
     def set_relay(id: RelayId, new_state: bool, force: bool = False) -> None:

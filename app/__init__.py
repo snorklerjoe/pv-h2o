@@ -136,12 +136,12 @@ def initialize_backend(flask_app):
     # Get the sensor polling loop going
     from .hardwarestate import HardwareState
     HardwareState.sync_gfci_settings()
-    HardwareState.start_sensorpolling(flask_app)
+    HardwareState.schedule_sensor_polling(flask_app)
 
     # Get the regulation loop going
     from .regulation import Regulator
     regulator = Regulator()
-    regulator.start_regulation(flask_app)
+    regulator.schedule_regulation(flask_app)
 
     # Begin a thread to handle the status LCD display loop
     start_status_display()
