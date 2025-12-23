@@ -18,6 +18,11 @@ def index():
 def dashboard():
     return render_template('dashboard.html', title='Dashboard')
 
+@bp.route('/sw.js')
+def service_worker():
+    from flask import send_from_directory, current_app
+    return send_from_directory(current_app.static_folder, 'sw.js')
+
 @bp.route('/login', methods=['GET', 'POST'])
 def login():
     if current_user.is_authenticated:
