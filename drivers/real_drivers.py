@@ -1,6 +1,7 @@
 import time
 import threading
 import glob
+import weakref
 from typing import Dict, Any, List
 import numpy as np
 from scipy.stats import trim_mean
@@ -38,7 +39,12 @@ class ArduinoInterface:
                 if cls._instance is None:
                     cls._instance = super(ArduinoInterface, cls).__new__(cls)
                     cls._instance.initialized = False
+                    cls._instance.listeners = weakref.WeakSet()
         return cls._instance
+
+    def register_listener(self, listener):
+        with self._lock:
+            self.listeners.add(listener)
 
     def initialize(self, address=0x08, bus_num=1, reset_pin=12):
         with self._lock:
@@ -98,6 +104,15 @@ class ArduinoInterface:
                     self.bus = smbus.SMBus(self.bus_num)
                 except Exception as e:
                     logger.error(f"Failed to reopen I2C bus {self.bus_num}: {e}")
+
+        # Restore states
+        logger.info("Restoring Arduino output states...")
+        with self._lock:
+            for listener in self.listeners:
+                try:
+                    listener.restore_state()
+                except Exception as e:
+                    logger.error(f"Failed to restore state: {e}")
 
     def read_word(self, command: int) -> int:
         if not self.bus:
@@ -166,12 +181,16 @@ class ArduinoOutputDriver(BaseOutputDriver):
         self.off_command = int(self.params.get('off_command', 0))
         self._state = False
         self.interface = ArduinoInterface()
+        self.interface.register_listener(self)
 
     def hardware_init(self):
         self.interface.initialize()
 
     def hardware_deinit(self):
         self.set_state(False)
+
+    def restore_state(self):
+        self.set_state(self._state)
 
     def set_state(self, state):
         self._state = state
