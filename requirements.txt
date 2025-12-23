@@ -16,3 +16,4 @@ pytest
 gitpython
 smbus2
 RPi.GPIO
+pandas
