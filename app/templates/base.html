@@ -35,7 +35,7 @@
               <a class="nav-link {% if request.endpoint == 'main.sensors' %}active{% endif %}" href="{{ url_for('main.sensors') }}">Sensor Readings</a>
             </li>
             <li class="nav-item">
-              <a class="nav-link {% if request.endpoint == 'main.grapher' %}active{% endif %}" href="{{ url_for('main.grapher') }}">Grapher</a>
+              <a class="nav-link {% if request.endpoint == 'main.data_utilities' %}active{% endif %}" href="{{ url_for('main.data_utilities') }}">Data Utilities</a>
             </li>
             <li class="nav-item">
               <a class="nav-link {% if request.endpoint == 'main.watchdog' %}active{% endif %}" href="{{ url_for('main.watchdog') }}">Watchdog</a>

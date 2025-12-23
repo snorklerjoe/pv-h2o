@@ -56,10 +56,10 @@ def settings():
 def sensors():
     return render_template('sensor_readings.html', title='Sensor Readings')
 
-@bp.route('/grapher')
+@bp.route('/data-utilities')
 @login_required
-def grapher():
-    return render_template('grapher.html', title='Grapher')
+def data_utilities():
+    return render_template('grapher.html', title='Data Utilities')
 
 @bp.route('/logs')
 @login_required

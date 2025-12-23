@@ -15,6 +15,8 @@ from datetime import datetime, timedelta
 from app.watchdog import WatchdogTrigger
 from app.config import Config
 from loguru import logger
+import pandas as pd
+import numpy as np
 
 @bp.route('/status', methods=['GET'])
 def get_status():
@@ -408,6 +410,8 @@ def get_history():
     start_str = request.args.get('start')
     end_str = request.args.get('end')
     sensors_str = request.args.get('sensors') # comma separated
+    derived_defs_str = request.args.get('derived_defs') # JSON string
+    downsample_factor = request.args.get('downsample_factor', type=int, default=1)
 
     query = Measurement.query
 
@@ -418,7 +422,7 @@ def get_history():
             start_local = start_utc.astimezone(Config.TIMEZONE).replace(tzinfo=None)
             query = query.filter(Measurement.timestamp >= start_local)
         except ValueError:
-            pass # Ignore invalid date
+            pass
             
     if end_str:
         try:
@@ -436,30 +440,157 @@ def get_history():
     query = query.order_by(Measurement.timestamp.asc())
     results = query.all()
 
-    # Convert timestamps to aware ISO strings
-    timestamps = []
-    for m in results:
-        # Attach timezone info (DB stores naive local time)
-        ts_aware = m.timestamp.replace(tzinfo=Config.TIMEZONE)
-        timestamps.append(ts_aware.isoformat())
+    if not results:
+        return jsonify({'timestamps': [], 'sensors': {}, 'relays': {}, 'sensor_names': {s.name: s.readable_name for s in SensorId}})
 
-    data = {
-        'timestamps': timestamps,
-        'sensors': {},
-        'relays': {
-            'inside_1': [m.relay_inside_1 for m in results],
-            'outside_1': [m.relay_outside_1 for m in results],
-            'inside_2': [m.relay_inside_2 for m in results],
-            'outside_2': [m.relay_outside_2 for m in results],
-        },
-        'sensor_names': {s.name: s.readable_name for s in SensorId}
+    # Convert to DataFrame
+    data = []
+    for m in results:
+        row = {
+            'timestamp': m.timestamp,
+            'relay_inside_1': m.relay_inside_1,
+            'relay_outside_1': m.relay_outside_1,
+            'relay_inside_2': m.relay_inside_2,
+            'relay_outside_2': m.relay_outside_2,
+        }
+        for s in SensorId:
+            col = f"{s.name}_cal"
+            row[s.name] = getattr(m, col, None)
+        data.append(row)
+        
+    df = pd.DataFrame(data)
+    df.set_index('timestamp', inplace=True)
+
+    # Apply derived columns
+    if derived_defs_str:
+        import json
+        try:
+            derived_defs = json.loads(derived_defs_str)
+            
+            # Safe evaluation environment
+            def integrate(series): return series.cumsum()
+            def differentiate(series): return series.diff()
+            
+            safe_locals = {
+                'integrate': integrate,
+                'differentiate': differentiate,
+                'diff': differentiate,
+                'np': np,
+                'pd': pd,
+            }
+            # Add numpy math functions
+            for name in ['sin', 'cos', 'tan', 'sqrt', 'abs', 'log', 'exp', 'power']:
+                safe_locals[name] = getattr(np, name)
+                
+            # Add columns to locals
+            for col in df.columns:
+                safe_locals[col] = df[col]
+                
+            for definition in derived_defs:
+                name = definition.get('name')
+                expr = definition.get('expr')
+                if name and expr:
+                    try:
+                        # Update locals with current df columns (in case one derived col depends on another)
+                        for col in df.columns:
+                            safe_locals[col] = df[col]
+                            
+                        df[name] = eval(expr, {"__builtins__": {}}, safe_locals)
+                    except Exception as e:
+                        logger.warning(f"Failed to derive {name}: {e}")
+        except Exception as e:
+            logger.error(f"Derived columns error: {e}")
+
+    # Filter by state
+    filter_state = request.args.get('filter_state')
+    if filter_state and filter_state != 'none':
+        if filter_state == 'c1_on':
+            df = df[df['relay_inside_1'] & df['relay_outside_1']]
+        elif filter_state == 'c1_off':
+            df = df[~(df['relay_inside_1'] & df['relay_outside_1'])]
+        elif filter_state == 'c2_on':
+            df = df[df['relay_inside_2'] & df['relay_outside_2']]
+        elif filter_state == 'c2_off':
+            df = df[~(df['relay_inside_2'] & df['relay_outside_2'])]
+
+    # Downsample
+    if downsample_factor > 1:
+        df = df.iloc[::downsample_factor]
+
+    # Convert timestamps to aware ISO strings
+    timestamps = [ts.replace(tzinfo=Config.TIMEZONE).isoformat() for ts in df.index]
+
+    # Prepare response data
+    resp_sensors = {}
+    
+    # Determine which columns to return
+    requested_cols = set(sensors_str.split(',')) if sensors_str else set([s.name for s in SensorId])
+    
+    # Also include any derived columns that were successfully created
+    if derived_defs_str:
+        try:
+            derived_defs = json.loads(derived_defs_str)
+            for d in derived_defs:
+                if d['name'] in df.columns:
+                    requested_cols.add(d['name'])
+        except: pass
+
+    for col in requested_cols:
+        if col in df.columns:
+            # Replace NaN with None for JSON compatibility
+            resp_sensors[col] = df[col].where(pd.notnull(df[col]), None).tolist()
+            
+    resp_relays = {
+        'inside_1': df['relay_inside_1'].tolist(),
+        'outside_1': df['relay_outside_1'].tolist(),
+        'inside_2': df['relay_inside_2'].tolist(),
+        'outside_2': df['relay_outside_2'].tolist(),
     }
 
-    sensor_list = sensors_str.split(',') if sensors_str else [s.name for s in SensorId]
+    return jsonify({
+        'timestamps': timestamps,
+        'sensors': resp_sensors,
+        'relays': resp_relays,
+        'sensor_names': {s.name: s.readable_name for s in SensorId}
+    })
 
-    for sensor in sensor_list:
-        col_name = f"{sensor}_cal"
-        if hasattr(Measurement, col_name):
-            data['sensors'][sensor] = [getattr(m, col_name) for m in results]
-            
-    return jsonify(data)
+@bp.route('/maintenance/downsample_db', methods=['POST'])
+@login_required
+def downsample_db():
+    """ Permanently downsample the database by keeping 1 row every N rows """
+    data = request.get_json()
+    factor = int(data.get('factor', 1))
+    
+    if factor <= 1:
+        return jsonify({'success': False, 'message': 'Factor must be > 1'})
+        
+    try:
+        # Construct SQL based on DB type
+        if 'sqlite' in Config.SQLALCHEMY_DATABASE_URI:
+             sql = f"""
+             DELETE FROM measurement 
+             WHERE id IN (
+                 SELECT id FROM (
+                     SELECT id, ROW_NUMBER() OVER (ORDER BY timestamp) as rn 
+                     FROM measurement
+                 ) 
+                 WHERE rn % {factor} != 0
+             )
+             """
+        else:
+             # Assume MySQL/MariaDB
+             sql = f"""
+             DELETE m FROM measurement m 
+             JOIN (
+                 SELECT id, ROW_NUMBER() OVER (ORDER BY timestamp) as rn 
+                 FROM measurement
+             ) t ON m.id = t.id 
+             WHERE t.rn % {factor} != 0
+             """
+             
+        db.session.execute(db.text(sql))
+        db.session.commit()
+        return jsonify({'success': True})
+    except Exception as e:
+        logger.error(f"Database downsample failed: {e}")
+        return jsonify({'success': False, 'message': str(e)})

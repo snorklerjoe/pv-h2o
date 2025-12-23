@@ -27,7 +27,7 @@ logger.add(Config.LOG_FILE_PATH, rotation="1 MB", retention="10 days", colorize=
 db = SQLAlchemy()
 scheduler = APScheduler()
 login = LoginManager()
-login.login_view = 'login'
+login.login_view = 'main.login'
 _backend_initialized = False
 
 from .dynconfig import DynConfig, MalformedConfigException

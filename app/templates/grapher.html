@@ -2,12 +2,15 @@
 
 {% block content %}
 <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/chartjs-adapter-date-fns/dist/chartjs-adapter-date-fns.bundle.min.js"></script>
 <div class="row">
     <div class="col-md-12">
-        <h1>Grapher</h1>
-        <p class="text-muted">Visualize historical sensor data.</p>
+        <h1>Data Utilities</h1>
+        <p class="text-muted">Visualize, analyze, and manage historical sensor data.</p>
         
+        <!-- Grapher Card -->
         <div class="card mb-4">
+            <div class="card-header">Grapher & Analysis</div>
             <div class="card-body">
                 <form id="graph-form" class="row g-3 align-items-end">
                     <div class="col-md-2">
@@ -23,6 +26,10 @@
                         <input type="number" class="form-control" id="smoothing" value="1" min="1" max="100">
                     </div>
                     <div class="col-md-2">
+                        <label for="downsample" class="form-label">Downsample (factor)</label>
+                        <input type="number" class="form-control" id="downsample" value="1" min="1" max="1000" title="Plot every Nth point">
+                    </div>
+                    <div class="col-md-2">
                         <label for="highlight" class="form-label">Highlight</label>
                         <select class="form-select" id="highlight">
                             <option value="none" selected>None</option>
@@ -31,24 +38,49 @@
                         </select>
                     </div>
                     <div class="col-md-2">
-                        <label class="form-label">Sensors</label>
+                        <label for="filter-state" class="form-label">Filter State</label>
+                        <select class="form-select" id="filter-state">
+                            <option value="none" selected>All Data</option>
+                            <option value="c1_on">Circuit 1 ON</option>
+                            <option value="c1_off">Circuit 1 OFF</option>
+                            <option value="c2_on">Circuit 2 ON</option>
+                            <option value="c2_off">Circuit 2 OFF</option>
+                        </select>
+                    </div>
+                    <div class="col-md-2">
+                        <label class="form-label">Data Selection</label>
                         <div class="dropdown">
                             <button class="btn btn-outline-secondary dropdown-toggle w-100" type="button" id="sensorDropdown" data-bs-toggle="dropdown" aria-expanded="false">
-                                Select Sensors
+                                Select Data
                             </button>
                             <ul class="dropdown-menu w-100" aria-labelledby="sensorDropdown" id="sensor-list">
                                 <!-- Populated by JS -->
                             </ul>
                         </div>
                     </div>
-                    <div class="col-md-2">
+                    <div class="col-md-12">
                         <button type="submit" class="btn btn-primary w-100">Graph</button>
                     </div>
                 </form>
+
+                <!-- Derived Columns -->
+                <div class="mt-4">
+                    <h5>Derived Columns</h5>
+                    <p class="text-muted small">
+                        Define custom columns using expressions. Supported: <code>+ - * / ( )</code>, <code>sin, cos, sqrt, abs, power</code>. 
+                        Special functions: <code>integrate(col)</code> (cumulative sum), <code>diff(col)</code> (difference).
+                        Example: <code>p1 = v1 * i1</code> or <code>e1 = integrate(v1 * i1)</code>.
+                    </p>
+                    <div id="derived-cols-container">
+                        <!-- Rows go here -->
+                    </div>
+                    <button type="button" class="btn btn-sm btn-outline-primary mt-2" onclick="addDerivedColumnRow()">+ Add Derived Column</button>
+                </div>
             </div>
         </div>
 
-        <div class="card">
+        <!-- Chart Card -->
+        <div class="card mb-4">
             <div class="card-body">
                 <div style="height: 500px;">
                     <canvas id="main-chart"></canvas>
@@ -56,6 +88,58 @@
                 <div class="mt-3 text-end">
                     <button class="btn btn-success" onclick="exportCSV()">Export CSV</button>
                 </div>
+            </div>
+        </div>
+
+        <!-- Database Utilities Card -->
+        <div class="card border-danger mb-4">
+            <div class="card-header bg-danger text-white">Database Utilities</div>
+            <div class="card-body">
+                <h5>Downsample Database</h5>
+                <p>Permanently reduce database size by keeping only 1 out of every N rows. <strong>This cannot be undone.</strong></p>
+                <button class="btn btn-danger" data-bs-toggle="modal" data-bs-target="#downsampleModal">Downsample Database...</button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Modals -->
+<div class="modal fade" id="downsampleModal" tabindex="-1">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title">Downsample Database</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body">
+                <p>This will permanently delete data. Are you sure?</p>
+                <div class="mb-3">
+                    <label class="form-label">Keep 1 row every N rows:</label>
+                    <input type="number" class="form-control" id="db-downsample-factor" value="2" min="2">
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+                <button type="button" class="btn btn-danger" data-bs-toggle="modal" data-bs-target="#downsampleConfirmModal" data-bs-dismiss="modal">Proceed</button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<div class="modal fade" id="downsampleConfirmModal" tabindex="-1">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title text-danger">Confirm Deletion</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body">
+                <p>This action is irreversible. Type <strong>DELETE</strong> to confirm.</p>
+                <input type="text" class="form-control" id="delete-confirm-input">
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+                <button type="button" class="btn btn-danger" onclick="executeDBDownsample()" id="btn-confirm-delete" disabled>Permanently Downsample</button>
             </div>
         </div>
     </div>
@@ -88,21 +172,11 @@
 
             ctx.save();
             
-            // We assume the data points are evenly spaced or at least sequential matching the labels
-            // Since we are using category axis (labels), we iterate by index
-            
             for (let i = 0; i < relayInside.length - 1; i++) {
-                // Circuit is ON if both relays are ON (Control + GFCI)
                 const isOn = relayInside[i] && relayOutside[i];
-                
                 ctx.fillStyle = isOn ? 'rgba(25, 135, 84, 0.15)' : 'rgba(220, 53, 69, 0.15)';
-                
-                // Get x coordinates for the current interval
-                // We extend from current point to next point
-                const startX = xAxis.getPixelForValue(i);
-                const endX = xAxis.getPixelForValue(i+1);
-                
-                // Fill the vertical slice
+                const startX = xAxis.getPixelForValue(chart.data.labels[i]);
+                const endX = xAxis.getPixelForValue(chart.data.labels[i+1]);
                 ctx.fillRect(startX, yAxis.top, endX - startX, yAxis.bottom - yAxis.top);
             }
             
@@ -111,11 +185,10 @@
     };
 
     document.addEventListener('DOMContentLoaded', () => {
-        // Set default times (last 24h)
+        // Set default times
         const now = new Date();
         const yesterday = new Date(now.getTime() - 24 * 60 * 60 * 1000);
         
-        // Format for datetime-local input (YYYY-MM-DDTHH:mm)
         const formatDT = (d) => {
             const pad = (n) => n < 10 ? '0' + n : n;
             return `${d.getFullYear()}-${pad(d.getMonth()+1)}-${pad(d.getDate())}T${pad(d.getHours())}:${pad(d.getMinutes())}`;
@@ -129,23 +202,7 @@
             .then(response => response.json())
             .then(data => {
                 availableSensors = Object.keys(data.sensors).sort();
-                const list = document.getElementById('sensor-list');
-                availableSensors.forEach(s => {
-                    const li = document.createElement('li');
-                    li.innerHTML = `
-                        <div class="dropdown-item">
-                            <div class="form-check">
-                                <input class="form-check-input sensor-check" type="checkbox" value="${s}" id="check-${s}" checked>
-                                <label class="form-check-label" for="check-${s}">
-                                    ${s}
-                                </label>
-                            </div>
-                        </div>
-                    `;
-                    list.appendChild(li);
-                });
-                
-                // Initial graph
+                updateSensorList();
                 updateGraph();
             });
 
@@ -153,28 +210,125 @@
             e.preventDefault();
             updateGraph();
         });
+        
+        // Confirm delete input handler
+        document.getElementById('delete-confirm-input').addEventListener('input', (e) => {
+            document.getElementById('btn-confirm-delete').disabled = e.target.value !== 'DELETE';
+        });
     });
+    
+    function updateSensorList() {
+        const list = document.getElementById('sensor-list');
+        list.innerHTML = '';
+        
+        // Add Deselect All button
+        const btnLi = document.createElement('li');
+        btnLi.innerHTML = `
+            <div class="dropdown-item">
+                <button type="button" class="btn btn-sm btn-outline-secondary w-100" onclick="deselectAllSensors(event)">Deselect All</button>
+            </div>
+        `;
+        list.appendChild(btnLi);
+
+        const dividerLi = document.createElement('li');
+        dividerLi.innerHTML = '<hr class="dropdown-divider">';
+        list.appendChild(dividerLi);
+        
+        // Native sensors
+        availableSensors.forEach(s => {
+            addSensorCheckbox(list, s, s, true);
+        });
+        
+        // Derived sensors (from inputs)
+        const derived = getDerivedDefinitions();
+        derived.forEach(d => {
+            addSensorCheckbox(list, d.name, `${d.name} (Derived)`, true);
+        });
+    }
+    
+    function deselectAllSensors(event) {
+        if (event) event.stopPropagation();
+        document.querySelectorAll('.sensor-check').forEach(cb => cb.checked = false);
+    }
+    
+    function addSensorCheckbox(list, value, label, checked) {
+        const li = document.createElement('li');
+        li.innerHTML = `
+            <div class="dropdown-item">
+                <div class="form-check">
+                    <input class="form-check-input sensor-check" type="checkbox" value="${value}" id="check-${value}" ${checked ? 'checked' : ''}>
+                    <label class="form-check-label" for="check-${value}">
+                        ${label}
+                    </label>
+                </div>
+            </div>
+        `;
+        list.appendChild(li);
+    }
+
+    function addDerivedColumnRow() {
+        const container = document.getElementById('derived-cols-container');
+        const div = document.createElement('div');
+        div.className = 'row g-2 mb-2 derived-row';
+        div.innerHTML = `
+            <div class="col-md-3">
+                <input type="text" class="form-control derived-name" placeholder="Name (e.g. p1)" onchange="updateSensorList()">
+            </div>
+            <div class="col-md-7">
+                <input type="text" class="form-control derived-expr" placeholder="Expression (e.g. v1 * i1)">
+            </div>
+            <div class="col-md-2">
+                <button type="button" class="btn btn-outline-danger w-100" onclick="this.closest('.derived-row').remove(); updateSensorList()">Remove</button>
+            </div>
+        `;
+        container.appendChild(div);
+    }
+    
+    function getDerivedDefinitions() {
+        const rows = document.querySelectorAll('.derived-row');
+        const defs = [];
+        rows.forEach(row => {
+            const name = row.querySelector('.derived-name').value.trim();
+            const expr = row.querySelector('.derived-expr').value.trim();
+            if (name && expr) {
+                defs.push({name, expr});
+            }
+        });
+        return defs;
+    }
 
     function updateGraph() {
         const start = new Date(document.getElementById('start-time').value).toISOString();
         const end = new Date(document.getElementById('end-time').value).toISOString();
         const smoothing = parseInt(document.getElementById('smoothing').value) || 1;
+        const downsample = parseInt(document.getElementById('downsample').value) || 1;
+        const filterState = document.getElementById('filter-state').value;
         
         const selectedSensors = Array.from(document.querySelectorAll('.sensor-check:checked')).map(cb => cb.value);
+        const derivedDefs = getDerivedDefinitions();
         
         if (selectedSensors.length === 0) {
-            alert("Please select at least one sensor.");
+            alert("Please select at least one data column.");
             return;
         }
 
-        fetch(`/api/history?start=${start}&end=${end}&sensors=${selectedSensors.join(',')}`)
+        const params = new URLSearchParams({
+            start: start,
+            end: end,
+            sensors: selectedSensors.join(','),
+            derived_defs: JSON.stringify(derivedDefs),
+            downsample_factor: downsample,
+            filter_state: filterState
+        });
+
+        fetch(`/api/history?${params.toString()}`)
             .then(response => response.json())
             .then(data => {
                 const ctx = document.getElementById('main-chart');
-                const timestamps = data.timestamps.map(t => new Date(t).toLocaleString());
+                const timestamps = data.timestamps.map(t => new Date(t));
                 
                 const datasets = Object.entries(data.sensors).map(([sensor, values], index) => {
-                    // Apply smoothing (Simple Moving Average)
+                    // Apply smoothing
                     let smoothedValues = values;
                     if (smoothing > 1) {
                         smoothedValues = [];
@@ -197,7 +351,6 @@
                         'rgb(199, 199, 199)'
                     ];
                     
-                    // Use human readable name if available
                     const label = data.sensor_names && data.sensor_names[sensor] ? data.sensor_names[sensor] : sensor;
 
                     return {
@@ -229,25 +382,25 @@
                             intersect: false,
                         },
                         plugins: {
-                            legend: {
-                                position: 'top',
-                            },
-                            title: {
-                                display: true,
-                                text: 'Sensor History'
-                            }
+                            legend: { position: 'top' },
+                            title: { display: true, text: 'Data History' }
                         },
                         scales: {
                             x: {
-                                ticks: {
-                                    maxTicksLimit: 10
+                                type: 'time',
+                                min: new Date(start),
+                                max: new Date(end),
+                                time: {
+                                    displayFormats: {
+                                        minute: 'HH:mm',
+                                        hour: 'MM/dd HH:mm'
+                                    }
                                 }
                             }
                         }
                     }
                 });
                 
-                // Attach relay data to the chart data so the plugin can access it
                 mainChart.data.relays = data.relays;
                 mainChart.update();
             });
@@ -256,30 +409,37 @@
     function exportCSV() {
         const start = new Date(document.getElementById('start-time').value).toISOString();
         const end = new Date(document.getElementById('end-time').value).toISOString();
+        const downsample = parseInt(document.getElementById('downsample').value) || 1;
+        const filterState = document.getElementById('filter-state').value;
         const selectedSensors = Array.from(document.querySelectorAll('.sensor-check:checked')).map(cb => cb.value);
+        const derivedDefs = getDerivedDefinitions();
         
         if (selectedSensors.length === 0) {
-            alert("Please select at least one sensor.");
+            alert("Please select at least one data column.");
             return;
         }
 
-        fetch(`/api/history?start=${start}&end=${end}&sensors=${selectedSensors.join(',')}`)
+        const params = new URLSearchParams({
+            start: start,
+            end: end,
+            sensors: selectedSensors.join(','),
+            derived_defs: JSON.stringify(derivedDefs),
+            downsample_factor: downsample,
+            filter_state: filterState
+        });
+
+        fetch(`/api/history?${params.toString()}`)
             .then(response => response.json())
             .then(data => {
                 let csvContent = "data:text/csv;charset=utf-8,";
-                
-                // Header
-                // Add relay headers
                 csvContent += "Timestamp," + Object.keys(data.sensors).join(",") + ",Relay_In_1,Relay_Out_1,Relay_In_2,Relay_Out_2\r\n";
                 
-                // Rows
                 data.timestamps.forEach((ts, index) => {
                     let row = ts;
                     Object.values(data.sensors).forEach(values => {
                         row += "," + (values[index] !== null ? values[index] : "");
                     });
                     
-                    // Add relay values
                     if (data.relays) {
                         row += "," + (data.relays.inside_1[index] ? "1" : "0");
                         row += "," + (data.relays.outside_1[index] ? "1" : "0");
@@ -288,18 +448,35 @@
                     } else {
                         row += ",,,,";
                     }
-                    
                     csvContent += row + "\r\n";
                 });
                 
                 const encodedUri = encodeURI(csvContent);
                 const link = document.createElement("a");
                 link.setAttribute("href", encodedUri);
-                link.setAttribute("download", "sensor_data.csv");
+                link.setAttribute("download", "data_export.csv");
                 document.body.appendChild(link);
                 link.click();
                 document.body.removeChild(link);
             });
+    }
+    
+    function executeDBDownsample() {
+        const factor = document.getElementById('db-downsample-factor').value;
+        fetch('/api/maintenance/downsample_db', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ factor: factor })
+        })
+        .then(response => response.json())
+        .then(data => {
+            if (data.success) {
+                alert("Database downsampled successfully.");
+                location.reload();
+            } else {
+                alert("Error: " + data.message);
+            }
+        });
     }
 </script>
 {% endblock %}
