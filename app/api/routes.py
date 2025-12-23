@@ -7,7 +7,8 @@ from app.models import SystemConfig, CalibrationPoint, Measurement
 from app import db
 from app.regulation import Regulator
 from app.calibration import CalibrationRegistry
-from app.hardware import gfci_driver
+from app.hardware import gfci_driver, initialize_hardware, deinitialize_hardware
+from drivers.real_drivers import ArduinoInterface
 from flask_login import login_required
 import os
 from datetime import datetime, timedelta
@@ -594,3 +595,25 @@ def downsample_db():
     except Exception as e:
         logger.error(f"Database downsample failed: {e}")
         return jsonify({'success': False, 'message': str(e)})
+
+@bp.route('/maintenance/reset_arduino', methods=['POST'])
+@login_required
+def reset_arduino():
+    try:
+        ArduinoInterface().reset_arduino()
+        return jsonify({'success': True})
+    except Exception as e:
+        logger.error(f"Arduino reset failed: {e}")
+        return jsonify({'success': False, 'message': str(e)})
+
+@bp.route('/maintenance/reinit_hardware', methods=['POST'])
+@login_required
+def reinit_hardware():
+    try:
+        deinitialize_hardware(force=True)
+        initialize_hardware()
+        return jsonify({'success': True})
+    except Exception as e:
+        logger.error(f"Hardware reinit failed: {e}")
+        return jsonify({'success': False, 'message': str(e)})
+

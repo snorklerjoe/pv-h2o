@@ -30,7 +30,7 @@ except RuntimeError:
 
 class ArduinoInterface:
     _instance = None
-    _lock = threading.Lock()
+    _lock = threading.RLock()
 
     def __new__(cls):
         if cls._instance is None:
@@ -70,6 +70,16 @@ class ArduinoInterface:
 
     def reset_arduino(self):
         logger.info("Resetting Arduino...")
+        
+        # Close bus to clear any buffer/state issues
+        with self._lock:
+            if self.bus:
+                try:
+                    self.bus.close()
+                except Exception:
+                    pass
+                self.bus = None
+
         if GPIO:
             with self._lock:
                 GPIO.setup(self.reset_pin, GPIO.OUT)
@@ -79,7 +89,15 @@ class ArduinoInterface:
                 GPIO.setup(self.reset_pin, GPIO.IN)
                 time.sleep(2)
         else:
-            logger.warning("Cannot reset Arduino: GPIO not available")
+            logger.error("Cannot reset Arduino: GPIO not available")
+
+        # Re-open bus
+        with self._lock:
+            if smbus:
+                try:
+                    self.bus = smbus.SMBus(self.bus_num)
+                except Exception as e:
+                    logger.error(f"Failed to reopen I2C bus {self.bus_num}: {e}")
 
     def read_word(self, command: int) -> int:
         if not self.bus:

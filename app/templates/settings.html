@@ -8,6 +8,24 @@
         
         <div id="alert-box"></div>
 
+        <!-- Hardware Maintenance Card -->
+        <div class="card mb-4 border-warning">
+            <div class="card-header bg-warning text-dark">
+                Hardware Maintenance
+            </div>
+            <div class="card-body">
+                <p class="card-text">Use these controls to recover from hardware communication errors.</p>
+                <div class="d-flex gap-2">
+                    <button class="btn btn-outline-dark" onclick="resetArduino()">
+                        <i class="bi bi-cpu"></i> Force Reset Arduino
+                    </button>
+                    <button class="btn btn-outline-danger" onclick="reinitHardware()">
+                        <i class="bi bi-arrow-repeat"></i> Force Re-init Hardware
+                    </button>
+                </div>
+            </div>
+        </div>
+
         <div class="card">
             <div class="card-body">
                 <form id="config-form">
@@ -172,6 +190,36 @@
                 console.error('Error loading config:', err);
                 document.getElementById('config-fields').innerHTML = '<div class="alert alert-danger">Failed to load configuration.</div>';
             });
+    }
+
+    function resetArduino() {
+        if (!confirm("Are you sure you want to reset the Arduino? This may interrupt control loops.")) return;
+        
+        fetch('/api/maintenance/reset_arduino', { method: 'POST' })
+            .then(response => response.json())
+            .then(data => {
+                if (data.success) {
+                    alert("Arduino reset command sent successfully.");
+                } else {
+                    alert("Error resetting Arduino: " + data.message);
+                }
+            })
+            .catch(err => alert("Request failed: " + err));
+    }
+
+    function reinitHardware() {
+        if (!confirm("Are you sure you want to re-initialize all hardware? This will stop and restart all drivers.")) return;
+
+        fetch('/api/maintenance/reinit_hardware', { method: 'POST' })
+            .then(response => response.json())
+            .then(data => {
+                if (data.success) {
+                    alert("Hardware re-initialization complete.");
+                } else {
+                    alert("Error re-initializing hardware: " + data.message);
+                }
+            })
+            .catch(err => alert("Request failed: " + err));
     }
 
     function saveConfig(key, value) {
