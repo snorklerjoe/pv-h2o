@@ -24,7 +24,7 @@ def splash_screen() -> None:
     _init_time = datetime.now(Config.TIMEZONE)
     if not hardware.lcd_driver: return
     hardware.lcd_driver.clear()
-    hardware.lcd_driver.set_backlight(True)
+    hardware.lcd_driver.set_backlight(DynConfig.lcd_backlight_enabled)
     hardware.lcd_driver.write_line(1, "PV Hot Water Control")
     hardware.lcd_driver.write_line(2, "  Initializing...   ")
 
@@ -39,10 +39,10 @@ def _status_display() -> NoReturn:
     if not hardware.lcd_driver:
         return
 
-    hardware.lcd_driver.set_backlight(False)
+    hardware.lcd_driver.set_backlight(DynConfig.lcd_backlight_enabled)
     
     while True:
-        hardware.lcd_driver.set_backlight(False)
+        hardware.lcd_driver.set_backlight(DynConfig.lcd_backlight_enabled)
         try:
             # --- Screen 1: Overview ---
             hardware.lcd_driver.clear()

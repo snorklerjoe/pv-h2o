@@ -214,3 +214,4 @@ class DynConfig:
 
     # Misc
     lcd_status_period = conf_property_evald("lcd_status_period", "8", "Seconds for which each status screen is up on the status LCD", ConfigCategory.MISC, lambda x: isinstance(x, int), "number")
+    lcd_backlight_enabled = conf_property_evald("lcd_backlight_enabled", "True", "Enable LCD Backlight", ConfigCategory.MISC, lambda x: isinstance(x, bool), "boolean")
