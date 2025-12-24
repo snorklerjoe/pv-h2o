@@ -44,11 +44,15 @@ def get_status():
         'ping': False,
         'tripped': [False, False],
         'enabled': DynConfig.gfci_enabled,
-        'threshold': DynConfig.gfci_trip_threshold_ma
+        'threshold': DynConfig.gfci_trip_threshold_ma,
+        'error': None
     }
     if gfci_driver:
-        gfci_status['ping'] = gfci_driver.ping()
-        gfci_status['tripped'] = [gfci_driver.is_tripped(1), gfci_driver.is_tripped(2)]
+        try:
+            gfci_status['ping'] = gfci_driver.ping()
+            gfci_status['tripped'] = [gfci_driver.is_tripped(1), gfci_driver.is_tripped(2)]
+        except Exception as e:
+            gfci_status['error'] = str(e)
 
     return jsonify({
         'sensors': readings,
@@ -617,3 +621,73 @@ def reinit_hardware():
         logger.error(f"Hardware reinit failed: {e}")
         return jsonify({'success': False, 'message': str(e)})
 
+
+@bp.route('/gfci/trip/<int:circuit_id>', methods=['POST'])
+@login_required
+def gfci_trip(circuit_id):
+    if gfci_driver:
+        try:
+            gfci_driver.set_tripped(circuit_id)
+            return jsonify({'status': 'ok'})
+        except Exception as e:
+            return jsonify({'status': 'error', 'message': str(e)}), 500
+    return jsonify({'status': 'error', 'message': 'No GFCI driver'}), 400
+
+@bp.route('/gfci/reset/<int:circuit_id>', methods=['POST'])
+@login_required
+def gfci_reset(circuit_id):
+    if gfci_driver:
+        try:
+            gfci_driver.reset_tripped(circuit_id)
+            return jsonify({'status': 'ok'})
+        except Exception as e:
+            return jsonify({'status': 'error', 'message': str(e)}), 500
+    return jsonify({'status': 'error', 'message': 'No GFCI driver'}), 400
+
+@bp.route('/gfci/threshold', methods=['POST'])
+@login_required
+def gfci_set_threshold():
+    data = request.get_json()
+    val = data.get('value')
+    if gfci_driver and val is not None:
+        try:
+            gfci_driver.set_threshold(float(val))
+            return jsonify({'status': 'ok'})
+        except Exception as e:
+            return jsonify({'status': 'error', 'message': str(e)}), 500
+    return jsonify({'status': 'error', 'message': 'Invalid request'}), 400
+
+@bp.route('/gfci/reset/soft', methods=['POST'])
+@login_required
+def gfci_soft_reset():
+    if gfci_driver and hasattr(gfci_driver, 'soft_reset'):
+        try:
+            gfci_driver.soft_reset()
+            return jsonify({'status': 'ok'})
+        except Exception as e:
+            return jsonify({'status': 'error', 'message': str(e)}), 500
+    return jsonify({'status': 'error', 'message': 'Not supported'}), 400
+
+@bp.route('/gfci/reset/hard', methods=['POST'])
+@login_required
+def gfci_hard_reset():
+    if gfci_driver and hasattr(gfci_driver, 'hard_reset'):
+        try:
+            gfci_driver.hard_reset()
+            return jsonify({'status': 'ok'})
+        except Exception as e:
+            return jsonify({'status': 'error', 'message': str(e)}), 500
+    return jsonify({'status': 'error', 'message': 'Not supported'}), 400
+
+@bp.route('/gfci/command', methods=['POST'])
+@login_required
+def gfci_command():
+    data = request.get_json()
+    cmd = data.get('command')
+    if gfci_driver and hasattr(gfci_driver, 'send_command') and cmd:
+        try:
+            resp = gfci_driver.send_command(cmd)
+            return jsonify({'status': 'ok', 'response': resp})
+        except Exception as e:
+            return jsonify({'status': 'error', 'message': str(e)}), 500
+    return jsonify({'status': 'error', 'message': 'Invalid request or driver'}), 400

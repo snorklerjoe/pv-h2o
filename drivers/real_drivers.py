@@ -6,6 +6,7 @@ from typing import Dict, Any, List
 import numpy as np
 from scipy.stats import trim_mean
 from loguru import logger
+import requests
 
 from drivers.base_driver import BaseSensorDriver, BaseOutputDriver, BaseLCDDriver, BaseGFCIDriver
 
@@ -403,3 +404,107 @@ class I2CLCDDriver(BaseLCDDriver):
         self._backlight_val = LCD_BACKLIGHT if state else LCD_NOBACKLIGHT
         self._write_cmd(self._backlight_val)
 
+
+@BaseGFCIDriver.register_driver("real")
+class RealGFCIDriver(BaseGFCIDriver):
+    def __init__(self, params: Dict[str, Any] = None):
+        super().__init__(params)
+        self.ip_address = self.params.get('ip_address', '192.168.1.54')
+        self.reset_pin = int(self.params.get('reset_pin', 12))
+        self.base_url = f"http://{self.ip_address}"
+        self._enabled = True
+
+    def hardware_init(self):
+        url = f"{self.base_url}/start"
+        logger.debug(f"GFCI: Initializing UART at {url}")
+        try:
+            resp = requests.post(url, params={'baud': 9600}, timeout=2)
+            logger.debug(f"GFCI: Init response {resp.status_code}")
+            resp.raise_for_status()
+        except Exception as e:
+            logger.error(f"Failed to init GFCI UART: {e}")
+
+    def hardware_deinit(self):
+        pass
+
+    def _send_sync(self, data: str, timeout: int = 5000) -> str:
+        url = f"{self.base_url}/send_sync"
+        logger.debug(f"GFCI: Sending sync '{data}' to {url}")
+        try:
+            resp = requests.post(url, data=data, params={'timeout': timeout}, timeout=(timeout/1000)+1)
+            if resp.status_code == 400 and "UART not started" in resp.text:
+                logger.warning("GFCI: UART not started, attempting to start...")
+                self.hardware_init()
+                # Retry once
+                resp = requests.post(url, data=data, params={'timeout': timeout}, timeout=(timeout/1000)+1)
+            
+            logger.debug(f"GFCI: Sync Response {resp.status_code}: {resp.text.strip()[:100]}")
+            resp.raise_for_status()
+            return resp.text.strip()
+        except Exception as e:
+            logger.error(f"GFCI: Sync request failed: {e}")
+            raise
+
+    def _send_async(self, data: str):
+        url = f"{self.base_url}/send_async"
+        logger.debug(f"GFCI: Sending async '{data}' to {url}")
+        try:
+            resp = requests.post(url, data=data, timeout=1)
+            if resp.status_code == 400 and "UART not started" in resp.text:
+                logger.warning("GFCI: UART not started, attempting to start...")
+                self.hardware_init()
+                # Retry once
+                resp = requests.post(url, data=data, timeout=1)
+
+            logger.debug(f"GFCI: Async Response {resp.status_code}")
+            resp.raise_for_status()
+        except Exception as e:
+            logger.error(f"GFCI: Async request failed: {e}")
+            raise
+
+    def set_tolerance(self, value: float):
+        pass
+
+    def set_threshold(self, value: float):
+        self._send_async(f"S_T {int(value)}")
+
+    def set_tripped(self, circuit: int):
+        self._send_async(f"OFF{circuit}")
+
+    def reset_tripped(self, circuit: int):
+        self._send_async(f"ON{circuit}")
+
+    def is_tripped(self, circuit: int) -> bool:
+        resp = self._send_sync(f"ST{circuit}")
+        return resp != "OK"
+
+    def ping(self) -> bool:
+        try:
+            resp = self._send_sync("G_T")
+            return resp.isdigit()
+        except Exception:
+            return False
+
+    def set_enabled(self, value: bool):
+        self._enabled = value
+        if not value:
+            self.set_tripped(1)
+            self.set_tripped(2)
+    
+    def hard_reset(self):
+        # Active LOW reset usually
+        logger.debug("GFCI: Performing hard reset (GPIO)")
+        try:
+            requests.post(f"{self.base_url}/gpio", params={'pin': self.reset_pin, 'state': 0}, timeout=1).raise_for_status()
+            time.sleep(0.1)
+            requests.post(f"{self.base_url}/gpio", params={'pin': self.reset_pin, 'state': 1}, timeout=1).raise_for_status()
+            logger.debug("GFCI: Hard reset complete")
+        except Exception as e:
+            logger.error(f"GFCI: Hard reset failed: {e}")
+            raise
+
+    def soft_reset(self):
+        self._send_async("RST")
+
+    def send_command(self, cmd: str) -> str:
+        return self._send_sync(cmd)

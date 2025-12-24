@@ -30,7 +30,7 @@
             </li>
             {% if current_user.is_authenticated %}
             <li class="nav-item">
-              <a class="nav-link {% if request.endpoint == 'main.settings' %}active{% endif %}" href="{{ url_for('main.settings') }}">Settings</a>
+              <a class="nav-link {% if request.endpoint == 'main.settings' %}active{% endif %}" href="{{ url_for('main.settings') }}">Controls</a>
             </li>
             <li class="nav-item">
               <a class="nav-link {% if request.endpoint == 'main.sensors' %}active{% endif %}" href="{{ url_for('main.sensors') }}">Sensor Readings</a>

@@ -167,6 +167,7 @@ class DynConfig:
     gfci_response_factor = conf_property_evald("gfci_response_factor", "1.0", "GFCI Response Factor", ConfigCategory.GFCI, lambda x: isinstance(x, (int, float)) and x > 0, "number")
     gfci_trip_threshold_ma = conf_property_evald("gfci_trip_threshold_ma", "5.0", "GFCI Trip Threshold (mA)", ConfigCategory.GFCI, lambda x: isinstance(x, (int, float)) and x > 0, "number")
     gfci_enabled = conf_property_evald("gfci_enabled", "True", "Whether the GFCI breakers are even enabled", ConfigCategory.REGULATION, lambda x: isinstance(x, bool), "boolean")
+    gfci_always_on = conf_property_evald("gfci_always_on", "False", "If True, GFCI breakers are NEVER turned off by regulation", ConfigCategory.GFCI, lambda x: isinstance(x, bool), "boolean")
 
     # Watchdog
     watchdog_excludes = conf_property_evald("watchdog_excludes", "[]", "List of disabled watchdog triggers", ConfigCategory.WATCHDOG, lambda x: isinstance(x, list), "json")
@@ -202,15 +203,17 @@ class DynConfig:
             "gfci2": ("gfci_relay", {"circuit": 2})
         })
         _default_lcd = "('i2c_lcd', {'address': 0x27, 'bus_num': 1})"
+        _default_gfci = "('real', {'ip_address': '192.168.1.54'})"
     else:
         _default_sensors = "{" + ', '.join([f"\"{key.value}\":(\"dummy\", {{ 'value': 2.0, 'noise': 1.0 }})" for key in SensorId]) + "}"
         _default_relays = "{" + ', '.join([f"\"{key.value}\":(\"gfci_relay\", {{ 'circuit': {1 if key.value == 'gfci1' else 2} }})" if key.value.startswith('gfci') else f"\"{key.value}\":(\"dummy\", {{ }})" for key in RelayId]) + "}"
         _default_lcd = "(\"dummy\", {})"
+        _default_gfci = "(\"dummy\", {})"
 
     driver_sensors = conf_property_evald("driver_sensors", _default_sensors, "Sensor Driver Configuration; note that drivers do not update until restart.", ConfigCategory.DRIVERS, lambda x: isinstance(x, dict), "json")
     driver_relays = conf_property_evald("driver_relays", _default_relays, "Relay Driver Configuration", ConfigCategory.DRIVERS, lambda x: isinstance(x, dict), "json")
-    driver_lcd = conf_property_evald("driver_lcd", _default_lcd, "LCD Driver Configuration", ConfigCategory.DRIVERS, lambda x: isinstance(x, dict), "text")
-    driver_gfci = conf_property_evald("driver_gfci", "(\"dummy\", {})", "GFCI Driver Configuration", ConfigCategory.DRIVERS, lambda x: isinstance(x, dict), "text")
+    driver_lcd = conf_property_evald("driver_lcd", _default_lcd, "LCD Driver Configuration", ConfigCategory.DRIVERS, lambda x: isinstance(x, tuple), "text")
+    driver_gfci = conf_property_evald("driver_gfci", _default_gfci, "GFCI Driver Configuration", ConfigCategory.DRIVERS, lambda x: isinstance(x, tuple), "text")
 
     # Misc
     lcd_status_period = conf_property_evald("lcd_status_period", "8", "Seconds for which each status screen is up on the status LCD", ConfigCategory.MISC, lambda x: isinstance(x, int), "number")

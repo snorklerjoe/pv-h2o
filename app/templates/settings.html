@@ -3,10 +3,44 @@
 {% block content %}
 <div class="row">
     <div class="col-md-12">
-        <h1>System Configuration</h1>
+        <h1>System Controls</h1>
         <p class="text-muted">Modify system parameters. Changes take effect immediately.</p>
         
         <div id="alert-box"></div>
+
+        <!-- GFCI Control Card -->
+        <div class="card mb-4 border-danger">
+            <div class="card-header bg-danger text-white">
+                GFCI Control
+            </div>
+            <div class="card-body">
+                <div id="gfci-error-msg" class="alert alert-warning py-2" style="display: none;"></div>
+                <div class="row">
+                    <div class="col-md-4">
+                        <h5>Circuit Status</h5>
+                        <div class="d-flex justify-content-between mb-2">
+                            <span>Circuit 1:</span>
+                            <span id="gfci-c1-status" class="badge bg-secondary">Unknown</span>
+                        </div>
+                        <div class="d-flex justify-content-between mb-3">
+                            <span>Circuit 2:</span>
+                            <span id="gfci-c2-status" class="badge bg-secondary">Unknown</span>
+                        </div>
+                        <div class="d-grid gap-2">
+                            <button class="btn btn-sm btn-danger" onclick="gfciHardReset()">Hard Reset Nano (GPIO)</button>
+                        </div>
+                    </div>
+                    <div class="col-md-8">
+                        <h5>UART Shell</h5>
+                        <textarea id="gfci-shell-output" class="form-control mb-2" rows="8" readonly style="font-family: monospace; background-color: #f8f9fa; font-size: 0.9em;"></textarea>
+                        <div class="input-group">
+                            <input type="text" id="gfci-shell-input" class="form-control" placeholder="Enter command (e.g., HLP)" onkeypress="handleShellEnter(event)">
+                            <button class="btn btn-primary" type="button" onclick="sendShellCommand()">Send</button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
 
         <!-- Hardware Maintenance Card -->
         <div class="card mb-4 border-warning">
@@ -57,7 +91,102 @@
 <script>
     const categoryOrder = {{ categories | tojson }};
 
-    document.addEventListener('DOMContentLoaded', loadConfig);
+    document.addEventListener('DOMContentLoaded', () => {
+        loadConfig();
+        updateGfciStatus();
+        setInterval(updateGfciStatus, 2000);
+        // Initial Help Command
+        setTimeout(() => sendShellCommand('HLP'), 500);
+    });
+
+    function handleShellEnter(e) {
+        if(e.key === 'Enter') sendShellCommand();
+    }
+
+    function sendShellCommand(cmdOverride) {
+        const input = document.getElementById('gfci-shell-input');
+        const output = document.getElementById('gfci-shell-output');
+        const cmd = cmdOverride || input.value;
+        
+        if(!cmd) return;
+        
+        output.value += `> ${cmd}\n`;
+        output.scrollTop = output.scrollHeight;
+        if(!cmdOverride) input.value = '';
+
+        fetch('/api/gfci/command', {
+            method: 'POST',
+            headers: {'Content-Type': 'application/json'},
+            body: JSON.stringify({command: cmd})
+        })
+        .then(r => r.json())
+        .then(d => {
+            if(d.status === 'ok') {
+                output.value += `${d.response}\n`;
+            } else {
+                output.value += `Error: ${d.message}\n`;
+            }
+            output.scrollTop = output.scrollHeight;
+        })
+        .catch(err => {
+            output.value += `Network Error: ${err}\n`;
+            output.scrollTop = output.scrollHeight;
+        });
+    }
+
+    function gfciHardReset() {
+        if(!confirm('Are you sure you want to HARD reset the GFCI Nano? This toggles the GPIO.')) return;
+        fetch('/api/gfci/reset/hard', { method: 'POST' })
+            .then(r => r.json())
+            .then(d => {
+                if(d.status === 'ok') {
+                    showAlert('Hard reset performed', 'success');
+                    const output = document.getElementById('gfci-shell-output');
+                    output.value += `> [HARD RESET]\n`;
+                }
+                else showAlert('Error: ' + d.message, 'danger');
+            });
+    }
+    
+    function updateGfciStatus() {
+        fetch('/api/status')
+            .then(r => r.json())
+            .then(data => {
+                if(data.gfci_status) {
+                    const s = data.gfci_status;
+                    const c1 = document.getElementById('gfci-c1-status');
+                    const c2 = document.getElementById('gfci-c2-status');
+                    const errDiv = document.getElementById('gfci-error-msg');
+                    
+                    if (s.error) {
+                        if(c1) { c1.textContent = 'ERROR'; c1.className = 'badge bg-warning text-dark'; }
+                        if(c2) { c2.textContent = 'ERROR'; c2.className = 'badge bg-warning text-dark'; }
+                        if(errDiv) {
+                            errDiv.textContent = 'Communication Error: ' + s.error;
+                            errDiv.style.display = 'block';
+                        }
+                    } else {
+                        if(c1) {
+                            c1.textContent = s.tripped[0] ? 'TRIPPED' : 'OK';
+                            c1.className = s.tripped[0] ? 'badge bg-danger' : 'badge bg-success';
+                        }
+                        
+                        if(c2) {
+                            c2.textContent = s.tripped[1] ? 'TRIPPED' : 'OK';
+                            c2.className = s.tripped[1] ? 'badge bg-danger' : 'badge bg-success';
+                        }
+                        
+                        if(errDiv) errDiv.style.display = 'none';
+                        
+                        // Only update threshold input if not focused
+                        const threshInput = document.getElementById('gfci-threshold');
+                        if(threshInput && document.activeElement !== threshInput) {
+                            threshInput.value = s.threshold;
+                        }
+                    }
+                }
+            });
+    }
 
     function loadConfig() {
         fetch('/api/config')
@@ -220,6 +349,18 @@
                 }
             })
             .catch(err => alert("Request failed: " + err));
+    }
+
+    function showAlert(message, type) {
+        const alertBox = document.getElementById('alert-box');
+        if(alertBox) {
+            alertBox.innerHTML = `<div class="alert alert-${type} alert-dismissible fade show" role="alert">
+                ${message}
+                <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+            </div>`;
+        } else {
+            alert(message);
+        }
     }
 
     function saveConfig(key, value) {

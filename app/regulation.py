@@ -73,6 +73,8 @@ class Regulator:
             self._status_repr = "It's dark out => Circuits are off."
             # Turn everything off, it's night time
             for relay in RelayId:
+                if DynConfig.gfci_always_on and (relay == RelayId.gfci1 or relay == RelayId.gfci2):
+                    continue
                 HardwareState.set_relay(relay, False)
             return  # no more until the morning.
 
@@ -97,6 +99,11 @@ class Regulator:
         else:
             self._status_repr1 = "C1:  Disabled => Circuit OFF."
             HardwareState.set_relay(RelayId.circ1, False)
+        
+        # Ensure GFCI is ON if always_on is set
+        if DynConfig.gfci_always_on:
+            HardwareState.set_relay(RelayId.gfci1, True)
+            HardwareState.set_relay(RelayId.gfci2, True)
 
         self._status_repr1 += "\n"
 

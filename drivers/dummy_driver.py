@@ -67,7 +67,7 @@ class DummyGFCIDriver(BaseGFCIDriver):
 
     def set_tripped(self, circuit: int):
         """ Forces the circuit to trip (circuit 1 or circuit 2) """
-        print(f"DUMMY_DRIVER: Tripping circuit {circuit}")
+        print(f"DUMMY_DRIVER: Tripping circuit {circuit} (IGNORED)")
         if not hasattr(self, '_tripped'):
             self._tripped = {}
         self._tripped[circuit] = True
@@ -80,15 +80,16 @@ class DummyGFCIDriver(BaseGFCIDriver):
         self._tripped[circuit] = False
 
     def is_tripped(self, circuit: int) -> bool:
-        if not hasattr(self, '_tripped'):
-            return False
-        return self._tripped.get(circuit, False)
+        return False
 
     def ping(self) -> bool:
         """ Checks connection with GFCI system and returns True if online """
-        return False
+        return True
     
     def set_enabled(self, value: bool):
         """ Sets whether or not the GFCI breaker is even enabled """
         print(f"DUMMY_DRIVER: Setting enabled state to  {value}")
+
+    def send_command(self, cmd: str) -> str:
+        return f"DUMMY_RESPONSE: {cmd}"
 
