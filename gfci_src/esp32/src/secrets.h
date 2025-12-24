@@ -1,0 +1,2 @@
+#define SECRET_SSID "MY SSID"
+#define SECRET_PASS "MY PASS"
