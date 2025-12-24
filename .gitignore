@@ -8,3 +8,4 @@ app*.log
 *.db*
 build/
 *.egg-info
+**/secrets.h
