@@ -304,7 +304,7 @@ LCD_ENTRYLEFT = 0x02
 LCD_DISPLAYON = 0x04
 LCD_2LINE = 0x08
 LCD_5x8DOTS = 0x00
-LCD_4BITMODE = 0x00 # Note: Legacy code had 0x00 for 4BITMODE? Wait.
+LCD_4BITMODE = 0x00
 # Legacy: LCD_4BITMODE = 0x00. 
 # Usually 4bit is 0x00 in the function set command if DL is bit 4.
 # DL=1 (8bit) is 0x10. DL=0 (4bit) is 0x00. Correct.

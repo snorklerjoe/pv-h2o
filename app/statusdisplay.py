@@ -49,8 +49,8 @@ def _status_display() -> NoReturn:
             
             # Line 0: Title & Time
             uptime = datetime.now(Config.TIMEZONE) - _init_time
-            time_str = f"{int(uptime.total_seconds() // 60)}:{uptime.seconds}"
-            hardware.lcd_driver.write_line(0, f"PV-H2O Sys    {time_str}")
+            time_str = f"{int(uptime.total_seconds() // (60*60))}:{int(uptime.total_seconds() // 60) % 60}:{uptime.seconds % 60}"
+            hardware.lcd_driver.write_line(0, f"PV-H2O Sys  {time_str}")
             
             # Line 1: Regulator Mode & Light
             mode = "Man" if DynConfig.manual_mode else "Auto"
