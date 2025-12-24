@@ -226,17 +226,17 @@ void setup() {
     WiFi.begin(ssid, password);
 
     // Wait for connection (without Serial debug, we just wait)
-    // If you have an onboard LED, you could blink it.
-    pinMode(33, OUTPUT); // Red LED on many ESP32-CAMs (inverted)
-    digitalWrite(33, HIGH); // Off
+    // Blink the flashlight LED (GPIO 4) until connected
+    pinMode(4, OUTPUT); 
+    digitalWrite(4, LOW); // Off
 
-    int retries = 0;
-    while (WiFi.status() != WL_CONNECTED && retries < 20) {
+    while (WiFi.status() != WL_CONNECTED) {
+        delay(50);
+        digitalWrite(4, false); // Blink
         delay(500);
-        digitalWrite(33, !digitalRead(33)); // Blink
-        retries++;
+        digitalWrite(4, true); // Blink
     }
-    digitalWrite(33, HIGH); // Off
+    digitalWrite(4, LOW); // Off
 
     // Setup Routes
     server.on("/start", HTTP_POST, handleStart);
