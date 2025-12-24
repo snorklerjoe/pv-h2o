@@ -125,7 +125,8 @@ class GFCIRelay(BaseOutputDriver):
 
     def set_state(self, state):
         from app.hardware import gfci_driver
-        if gfci_driver:
+        from app.dynconfig import DynConfig
+        if gfci_driver and DynConfig.gfci_enabled:
             if state:
                 gfci_driver.reset_tripped(self.circuit)
             else:
@@ -133,6 +134,7 @@ class GFCIRelay(BaseOutputDriver):
 
     def get_state(self):
         from app.hardware import gfci_driver
-        if gfci_driver:
+        from app.dynconfig import DynConfig
+        if gfci_driver and DynConfig.gfci_enabled:
             return not gfci_driver.is_tripped(self.circuit)
         return False

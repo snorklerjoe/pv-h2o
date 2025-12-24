@@ -157,6 +157,37 @@
                     const c1 = document.getElementById('gfci-c1-status');
                     const c2 = document.getElementById('gfci-c2-status');
                     const errDiv = document.getElementById('gfci-error-msg');
+                    const shellInput = document.getElementById('gfci-shell-input');
+                    const shellOutput = document.getElementById('gfci-shell-output');
+                    const hardResetBtn = document.querySelector('button[onclick="gfciHardReset()"]');
+
+                    if (!s.enabled) {
+                        if(c1) { c1.textContent = 'DISABLED'; c1.className = 'badge bg-secondary'; }
+                        if(c2) { c2.textContent = 'DISABLED'; c2.className = 'badge bg-secondary'; }
+                        if(errDiv) {
+                            errDiv.textContent = 'GFCI System Disabled in Configuration';
+                            errDiv.style.display = 'block';
+                            errDiv.className = 'alert alert-secondary py-2';
+                        }
+                        if(shellInput) shellInput.disabled = true;
+                        if(shellOutput) {
+                            shellOutput.disabled = true;
+                            shellOutput.style.backgroundColor = '#e9ecef';
+                        }
+                        if(hardResetBtn) hardResetBtn.disabled = true;
+                        return;
+                    } else {
+                        if(shellInput) shellInput.disabled = false;
+                        if(shellOutput) {
+                            shellOutput.disabled = false;
+                            shellOutput.style.backgroundColor = '#f8f9fa';
+                        }
+                        if(hardResetBtn) hardResetBtn.disabled = false;
+                        if(errDiv && errDiv.textContent === 'GFCI System Disabled in Configuration') {
+                            errDiv.style.display = 'none';
+                            errDiv.className = 'alert alert-warning py-2';
+                        }
+                    }
                     
                     if (s.error) {
                         if(c1) { c1.textContent = 'ERROR'; c1.className = 'badge bg-warning text-dark'; }

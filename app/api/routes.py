@@ -47,7 +47,7 @@ def get_status():
         'threshold': DynConfig.gfci_trip_threshold_ma,
         'error': None
     }
-    if gfci_driver:
+    if gfci_driver and DynConfig.gfci_enabled:
         try:
             gfci_status['ping'] = gfci_driver.ping()
             gfci_status['tripped'] = [gfci_driver.is_tripped(1), gfci_driver.is_tripped(2)]
@@ -625,6 +625,8 @@ def reinit_hardware():
 @bp.route('/gfci/trip/<int:circuit_id>', methods=['POST'])
 @login_required
 def gfci_trip(circuit_id):
+    if not DynConfig.gfci_enabled:
+        return jsonify({'status': 'error', 'message': 'GFCI Disabled'}), 400
     if gfci_driver:
         try:
             gfci_driver.set_tripped(circuit_id)
@@ -636,6 +638,8 @@ def gfci_trip(circuit_id):
 @bp.route('/gfci/reset/<int:circuit_id>', methods=['POST'])
 @login_required
 def gfci_reset(circuit_id):
+    if not DynConfig.gfci_enabled:
+        return jsonify({'status': 'error', 'message': 'GFCI Disabled'}), 400
     if gfci_driver:
         try:
             gfci_driver.reset_tripped(circuit_id)
@@ -647,6 +651,8 @@ def gfci_reset(circuit_id):
 @bp.route('/gfci/threshold', methods=['POST'])
 @login_required
 def gfci_set_threshold():
+    if not DynConfig.gfci_enabled:
+        return jsonify({'status': 'error', 'message': 'GFCI Disabled'}), 400
     data = request.get_json()
     val = data.get('value')
     if gfci_driver and val is not None:
@@ -660,6 +666,8 @@ def gfci_set_threshold():
 @bp.route('/gfci/reset/soft', methods=['POST'])
 @login_required
 def gfci_soft_reset():
+    if not DynConfig.gfci_enabled:
+        return jsonify({'status': 'error', 'message': 'GFCI Disabled'}), 400
     if gfci_driver and hasattr(gfci_driver, 'soft_reset'):
         try:
             gfci_driver.soft_reset()
@@ -671,6 +679,8 @@ def gfci_soft_reset():
 @bp.route('/gfci/reset/hard', methods=['POST'])
 @login_required
 def gfci_hard_reset():
+    if not DynConfig.gfci_enabled:
+        return jsonify({'status': 'error', 'message': 'GFCI Disabled'}), 400
     if gfci_driver and hasattr(gfci_driver, 'hard_reset'):
         try:
             gfci_driver.hard_reset()
@@ -682,6 +692,8 @@ def gfci_hard_reset():
 @bp.route('/gfci/command', methods=['POST'])
 @login_required
 def gfci_command():
+    if not DynConfig.gfci_enabled:
+        return jsonify({'status': 'error', 'message': 'GFCI Disabled'}), 400
     data = request.get_json()
     cmd = data.get('command')
     if gfci_driver and hasattr(gfci_driver, 'send_command') and cmd:
